@@ -14,7 +14,7 @@ Every scene picture is captioned with the exact scene specification sent to the 
 ```
 browser                                server (Express, Render)                 OpenAI API
 ───────                                ────────────────────────                 ──────────
-photo ─resize to ≤1024px JPEG─▶ POST /api/cartoon {photo, settings} ─1 call─▶ gpt-image-1-mini
+photo ─resize to ≤1024px JPEG─▶ POST /api/cartoon {photo, settings} ─1 call─▶ gpt-image-1
                                 ◀──────────── cartoon portrait ◀───────────────
 cartoon + photo ──────────────▶ POST /api/scene {sceneId:"plant", ...} ─1 call─▶
 cartoon + photo ──────────────▶ POST /api/scene {sceneId:"climb", ...} ─1 call─▶
@@ -37,13 +37,14 @@ cartoon + photo ──────────────▶ POST /api/scene {s
 | `public/` | The single-page UI (Tailwind via CDN) |
 | `scripts/try.mjs` | Makes exactly one model call per run, used to iterate on the prompts |
 | `test/` | Offline tests: input validation, settings sanitizing, caption = spec (`npm test`) |
-| `test-faces/` | Diverse AI-generated faces of people who don't exist, used for the likeness tests |
-| `TESTING.md` | The production checks (likeness and scene fidelity): method, results and prompt history |
+| `test-faces/` | Seven AI-generated faces of people who don't exist, used for the likeness tests |
+| `test-results/thumbs/` | Contact sheets (photo, cartoon, both scenes) for each test face |
+| `TESTING.md` | The production checks (likeness and scene fidelity) on seven faces: method, results, known limitation and prompt history |
 | `render.yaml` | Render Blueprint (the key is declared with `sync: false`, so it never lives in the repo) |
 
 ## Model and API key
 
-- Model: **`gpt-image-1-mini`** (OpenAI's cheap image editing model) at `medium` quality, roughly 1-3 cents per image, so a full run (cartoon + 2 scenes) is well under 10 cents. Change `IMAGE_MODEL` / `IMAGE_QUALITY` without touching code. If faces don't match well enough, try `gpt-image-1` (the app then sets `input_fidelity: high`) or `gpt-image-2`.
+- Model: **`gpt-image-1`** with `input_fidelity: high` at `medium` quality. In testing it kept faces far better than the cheaper `gpt-image-1-mini`, which invented glasses and drifted on eye color. It takes about 20�30 s per image and costs a few cents each; a full run is three images. Change `IMAGE_MODEL` / `IMAGE_QUALITY` with no code change (`gpt-image-1-mini` is the cheap option).
 - OpenAI's image models are paid-only: add prepaid credit under Billing (the Billing page lets you cap spending). They may require a one-time Organization Verification.
 - The key is read only from the `OPENAI_API_KEY` environment variable.
 

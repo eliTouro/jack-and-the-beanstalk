@@ -22,6 +22,7 @@ if (what === 'face' && photoPath && style) {
   const image = await generateImage({ prompt, images: [], size: '1024x1024' });
   await writeFile(photoPath, Buffer.from(image.data, 'base64'));
   console.log(`${MODEL} face -> ${photoPath}`);
+  await new Promise((r) => setTimeout(r, 250)); // let the HTTP socket close before exiting (Windows assertion otherwise)
   process.exit(0);
 }
 
@@ -35,7 +36,7 @@ const mimeOf = (p) => ({ '.png': 'image/png', '.webp': 'image/webp' })[extname(p
 const load = async (p) => ({ data: (await readFile(p)).toString('base64'), mimeType: mimeOf(p) });
 
 const face = basename(photoPath, extname(photoPath));
-const stem = `test-results/${face}-${settings.style}`;
+const stem = `test-results/${face}-${settings.style}${process.env.TRY_TAG ? `-${process.env.TRY_TAG}` : ""}`;
 await mkdir('test-results', { recursive: true });
 
 const photo = await load(photoPath);

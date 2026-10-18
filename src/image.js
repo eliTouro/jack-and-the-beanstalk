@@ -1,7 +1,7 @@
 import OpenAI, { toFile } from 'openai';
 
 // Swap models with the IMAGE_MODEL env var; no code change needed.
-export const MODEL = process.env.IMAGE_MODEL || 'gpt-image-1-mini';
+export const MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
 const QUALITY = process.env.IMAGE_QUALITY || 'medium'; // low | medium | high
 
 export class HttpError extends Error {

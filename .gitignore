@@ -5,6 +5,6 @@ node_modules/
 *.log
 .DS_Store
 # Full-size test outputs stay local; TESTING.md links the committed thumbnails.
-test-results/*.jpg
+test-results/*
 !test-results/thumbs/
 .claude/

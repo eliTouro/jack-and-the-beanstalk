@@ -27,7 +27,7 @@ export const STYLES = {
 
 export const EXAGGERATION = {
   subtle: 'Keep proportions close to real life; stylize the rendering, not the anatomy.',
-  medium: 'Use gentle cartoon proportions: a slightly larger head and eyes, simplified shapes.',
+  medium: 'Use gentle cartoon proportions: a slightly larger head and simplified shapes. Eye size, eye color and nose shape stay as in the photo.',
   bold: 'Use playful caricature proportions: a big head and expressive eyes, but every distinctive facial feature must stay recognizable.',
 };
 
@@ -45,7 +45,7 @@ export const LINES = {
 
 export const DEFAULT_SETTINGS = {
   style: 'storybook',
-  exaggeration: 'medium',
+  exaggeration: 'subtle',
   palette: 'vivid',
   lines: 'fine',
 };
@@ -82,7 +82,7 @@ export function cartoonPrompt(settings) {
     'Turn the person in this photo into a cartoon character portrait.',
     IDENTITY,
     styleSentence(s),
-    'Show head and shoulders, facing the viewer, with a friendly expression, on a plain soft cream background.',
+    'Show head and shoulders, facing the viewer, keeping the same expression and head tilt as in the photo, on a plain soft cream background.',
     'Dress them in simple medieval peasant clothes: a rough linen tunic with a leather cord at the collar.',
     'Exactly one person. No text, no captions, no watermark, no frame.',
   ].join('\n');
@@ -96,8 +96,8 @@ export const SCENES = {
     title: 'Jack plants the magic beans',
     spec:
       'Jack kneels in the dark soil of a small vegetable patch beside a thatched-roof cottage, ' +
-      'pressing a handful of glowing magic beans into a freshly dug hole with one hand. ' +
-      'A small cloth pouch of beans lies open beside the hole. ' +
+      'pushing several glowing magic beans down into a freshly dug hole with the fingertips of one hand, so the beans glow inside the hole. ' +
+      'A small open cloth pouch full of beans sits on the soil right beside the hole. ' +
       'A brown and white cow watches from behind a low wooden fence. Golden early-evening light.',
   },
   climb: {
@@ -115,7 +115,10 @@ export function scenePrompt(sceneId, settings) {
   return [
     'Create one illustration for the fairy tale "Jack and the Beanstalk".',
     'Image 1 is a real photo of a person. Image 2 is that same person already drawn as a cartoon character.',
-    'Cast this person as Jack: the character in the scene is this exact person, keeping their own face, gender presentation, skin tone, hair and glasses (if any), drawn exactly like image 2.',
+    'Cast this person as Jack: the character in the scene is this exact person, keeping their own face, gender presentation, skin tone, hair and glasses (if any).',
+    '"Jack" is only the name of the role: it does not set the gender, age or look of the character. Draw this person at exactly the age shown in the photo, neither older nor younger, with their real gender presentation.',
+    'Image 2 shows how to draw this person as a cartoon character: reproduce that same character, including glasses if they wear them. Image 1 (the photo) wins any disagreement: copy its eye color, skin tone, hair color and style exactly, and do not lighten the skin.',
+    'Glasses: copy the photo exactly. If the person wears glasses, they wear the same glasses in this scene; if they do not wear glasses, Jack wears none.',
     IDENTITY,
     'Make the face large enough to be clearly visible and recognizable, turned at least three-quarters toward the viewer.',
     styleSentence(s),
