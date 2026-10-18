@@ -1,6 +1,6 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
-import { generateImage, HttpError, MODEL } from './src/gemini.js';
+import { generateImage, HttpError, MODEL } from './src/image.js';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, STYLES, EXAGGERATION, PALETTES, LINES, DEFAULT_SETTINGS } from './src/prompts.js';
 
 const app = express();
@@ -38,7 +38,7 @@ function parseImage(dataUrl, field) {
 const toDataUrl = (img) => `data:${img.mimeType};base64,${img.data}`;
 
 // --- Routes -------------------------------------------------------------------
-app.get('/healthz', (_req, res) => res.json({ ok: true, model: MODEL, keyConfigured: Boolean(process.env.GEMINI_API_KEY) }));
+app.get('/healthz', (_req, res) => res.json({ ok: true, model: MODEL, keyConfigured: Boolean(process.env.OPENAI_API_KEY) }));
 
 // The menus the UI renders, so the server stays the single source of truth.
 app.get('/api/options', (_req, res) => {
@@ -59,7 +59,7 @@ app.post('/api/cartoon', async (req, res, next) => {
     const photo = parseImage(req.body?.photo, 'photo');
     const settings = normalizeSettings(req.body?.settings);
     spendBudget(req);
-    const image = await generateImage({ prompt: cartoonPrompt(settings), images: [photo], aspectRatio: '1:1' });
+    const image = await generateImage({ prompt: cartoonPrompt(settings), images: [photo], size: '1024x1024' });
     res.json({ image: toDataUrl(image), settings });
   } catch (err) {
     next(err);
@@ -75,7 +75,7 @@ app.post('/api/scene', async (req, res, next) => {
     const cartoon = parseImage(req.body?.cartoon, 'cartoon');
     const settings = normalizeSettings(req.body?.settings);
     spendBudget(req);
-    const image = await generateImage({ prompt: scenePrompt(sceneId, settings), images: [photo, cartoon], aspectRatio: '4:3' });
+    const image = await generateImage({ prompt: scenePrompt(sceneId, settings), images: [photo, cartoon], size: '1536x1024' });
     // The caption is the exact scene specification that was sent to the model.
     res.json({ image: toDataUrl(image), sceneId, title: SCENES[sceneId].title, caption: SCENES[sceneId].spec });
   } catch (err) {

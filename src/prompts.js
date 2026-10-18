@@ -72,6 +72,8 @@ const IDENTITY = [
   'Keep, exactly: face shape and jawline, eye shape, eye spacing and eye color, eyebrow shape, nose shape and size, mouth and lip shape, ears,',
   'skin tone, any freckles, moles or dimples, hairline, hairstyle, hair length, hair texture and hair color, facial hair, glasses, and apparent age.',
   'Do not beautify, de-age, slim, change ethnicity or swap in a generic cartoon face. Stylize the rendering, not the identity.',
+  'Copy only what is really in the photo: if the person does not wear glasses, draw no glasses; if they have no beard, draw none; add no hat, jewelry or other accessory that is not in the photo.',
+  'Keep the eyes the same size relative to the face as in the photo.',
 ].join(' ');
 
 export function cartoonPrompt(settings) {

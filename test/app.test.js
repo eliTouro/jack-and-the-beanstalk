@@ -3,7 +3,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, DEFAULT_SETTINGS } from '../src/prompts.js';
 
-delete process.env.GEMINI_API_KEY;
+delete process.env.OPENAI_API_KEY;
 const { default: app } = await import('../server.js');
 
 let server, base;
@@ -61,7 +61,7 @@ test('rejects an unknown scene', async () => {
 test('without a key the server says so instead of crashing', async () => {
   const res = await post('/api/cartoon', { photo: tinyPng });
   assert.equal(res.status, 500);
-  assert.match((await res.json()).error, /GEMINI_API_KEY/);
+  assert.match((await res.json()).error, /OPENAI_API_KEY/);
 });
 
 test('healthz reports the key is missing, never its value', async () => {

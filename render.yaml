@@ -11,9 +11,11 @@ services:
     domains:
       - beanstalk.eliweiss.me
     envVars:
-      - key: GEMINI_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
-      - key: GEMINI_IMAGE_MODEL
-        value: gemini-nano-banana-2.1
+      - key: IMAGE_MODEL
+        value: gpt-image-1-mini
+      - key: IMAGE_QUALITY
+        value: medium
       - key: IMAGES_PER_HOUR
         value: "15"
