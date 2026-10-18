@@ -1,0 +1,19 @@
+# Render Blueprint: Render -> New -> Blueprint -> pick this repo.
+# The API key is NOT stored here: `sync: false` makes Render ask for it in the dashboard.
+services:
+  - type: web
+    name: jack-and-the-beanstalk
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    domains:
+      - beanstalk.eliweiss.me
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_IMAGE_MODEL
+        value: gemini-nano-banana-2.1
+      - key: IMAGES_PER_HOUR
+        value: "15"

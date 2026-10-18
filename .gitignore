@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+# Full-size test outputs stay local; TESTING.md links the committed thumbnails.
+test-results/*.jpg
+!test-results/thumbs/
+.claude/
