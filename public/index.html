@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jack and the Beanstalk, starring you</title>
+  <title>Jack and the Beanstalk: a storybook starring your child</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%AB%98%3C/text%3E%3C/svg%3E">
-  <meta name="description" content="Upload a photo, pick an art style, and become Jack in two Jack and the Beanstalk scenes.">
+  <meta name="description" content="Upload a photo and your child becomes Jack in a three-page picture book you can download as a PDF.">
   <meta name="theme-color" content="#F2E6C8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,13 +31,12 @@
       }
     };
   </script>
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/book.css">
 </head>
 <body class="font-body text-ink">
-  <a href="#main" class="skip-link">Skip to the story</a>
+  <a href="#main" class="skip-link">Skip to the book</a>
   <div id="status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- ===== Hero ===== -->
   <header class="hero">
     <svg class="hero-stalk" viewBox="0 0 220 640" aria-hidden="true" focusable="false">
       <g class="cloud">
@@ -46,157 +45,122 @@
         <ellipse cx="160" cy="78" rx="52" ry="20" fill="#FBF4E1"/>
       </g>
       <g fill="#1D3F26">
-        <rect x="80" y="22" width="60" height="42"/>
-        <rect x="74" y="12" width="14" height="52"/>
-        <rect x="132" y="12" width="14" height="52"/>
-        <rect x="102" y="4" width="16" height="30"/>
+        <rect x="80" y="22" width="60" height="42"/><rect x="74" y="12" width="14" height="52"/>
+        <rect x="132" y="12" width="14" height="52"/><rect x="102" y="4" width="16" height="30"/>
         <path d="M74 12 l7 -10 l7 10z M132 12 l7 -10 l7 10z M102 4 l8 -12 l8 12z"/>
       </g>
       <g fill="#D9A21B"><rect x="105" y="40" width="10" height="14" rx="5"/><rect x="82" y="30" width="6" height="8" rx="3"/><rect x="132" y="30" width="6" height="8" rx="3"/></g>
-      <path class="stalk" d="M104 640 C 30 560, 190 500, 108 420 S 30 300, 112 230 S 168 140, 110 84" fill="none" stroke="#2D5B35" stroke-width="12" stroke-linecap="round"/>
+      <path d="M104 640 C 30 560, 190 500, 108 420 S 30 300, 112 230 S 168 140, 110 84" fill="none" stroke="#2D5B35" stroke-width="12" stroke-linecap="round"/>
       <g fill="#5C8A3E">
         <path class="leaf l1" d="M80 548 C 56 520, 24 524, 10 540 C 30 566, 62 566, 80 548Z"/>
         <path class="leaf l2" d="M142 470 C 166 444, 198 446, 212 462 C 192 488, 160 490, 142 470Z" fill="#2D5B35"/>
         <path class="leaf l3" d="M82 388 C 58 360, 26 364, 10 380 C 30 406, 62 406, 82 388Z"/>
         <path class="leaf l4" d="M132 300 C 156 274, 188 276, 204 292 C 184 318, 152 320, 132 300Z" fill="#2D5B35"/>
         <path class="leaf l5" d="M92 214 C 70 188, 40 190, 24 206 C 44 230, 74 232, 92 214Z"/>
-        <path class="leaf l6" d="M128 150 C 150 128, 178 130, 192 144 C 174 166, 146 168, 128 150Z" fill="#2D5B35"/>
       </g>
     </svg>
 
     <div class="mx-auto w-full max-w-5xl px-4 sm:px-6 relative">
-      <p class="eyebrow">A fairy tale, starring you</p>
-      <h1 class="hero-title font-display">Jack and the <em>Beanstalk</em></h1>
-      <p class="hero-lede">Upload a photo and we will turn you into a cartoon, then cast you as Jack: planting the magic beans and climbing up to the giant&rsquo;s castle.</p>
-
-      <ol class="steps" id="steps" aria-label="Progress">
-        <li class="step" data-step="1" data-state="current" aria-current="step"><span class="bean" aria-hidden="true"></span><span class="step-label">Upload</span></li>
-        <li class="step" data-step="2" data-state="upcoming"><span class="bean" aria-hidden="true"></span><span class="step-label">Cartoonify</span></li>
-        <li class="step" data-step="3" data-state="upcoming"><span class="bean" aria-hidden="true"></span><span class="step-label">Into the story</span></li>
+      <p class="eyebrow">A picture book, made for one child</p>
+      <h1 class="hero-title font-display">A storybook starring <em>your child</em></h1>
+      <p class="hero-lede">Upload one photo. Your child becomes Jack, trades the cow for magic beans, and ends up on three illustrated pages you can download and print.</p>
+      <ol class="hero-steps" aria-label="How it works">
+        <li>Add a photo</li><li>Meet your Jack</li><li>Make the pages</li><li>Fill in About me</li><li>Download the PDF</li>
       </ol>
     </div>
   </header>
 
-  <main id="main" class="mx-auto w-full max-w-5xl px-4 sm:px-6 pb-20 flex flex-col gap-8 sm:gap-10 relative">
+  <main id="main" class="mx-auto w-full max-w-5xl px-4 sm:px-6">
 
-    <!-- ===== 1. Upload ===== -->
-    <section class="panel" aria-labelledby="h-upload">
-      <div class="panel-head">
-        <span class="chapter" aria-hidden="true">1</span>
+    <!-- 1. photo -->
+    <section class="step" aria-labelledby="h-photo">
+      <div class="step-head"><span class="step-no" aria-hidden="true">1</span><h2 id="h-photo" class="font-display">Add a photo</h2></div>
+      <p class="step-sub">One child, face clearly visible, in good light. Straight-on photos work best.</p>
+      <div class="upload-grid">
         <div>
-          <h2 id="h-upload" class="panel-title font-display">Your photo</h2>
-          <p class="panel-sub">One clear face, looking toward the camera.</p>
-        </div>
-      </div>
-
-      <div class="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
-        <div>
-          <label class="dropzone" id="dropzone" for="file-input">
-            <input id="file-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
-            <span class="drop-empty" id="drop-empty">
-              <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="18" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M6 44c2-11 10-15 18-15s16 4 18 15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-              <span class="drop-title font-display">Drop a photo here</span>
-              <span class="drop-hint">or click to choose a file</span>
-            </span>
-            <img id="photo-preview" class="photo-preview" alt="Preview of your uploaded photo" hidden>
+          <label id="drop" class="drop" for="photo-input" tabindex="0" role="button" aria-describedby="photo-hint">
+            <div id="drop-empty" class="drop-inner">
+              <svg class="drop-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="12" width="38" height="28" rx="5"/><circle cx="24" cy="26" r="7"/><path d="M17 12l3-5h8l3 5"/></svg>
+              <strong>Drop a photo here, or tap to choose</strong>
+              <span id="photo-hint">JPG, PNG or WebP. We shrink it on your device first.</span>
+            </div>
+            <img id="photo-preview" class="photo-preview" alt="The photo you chose" hidden>
           </label>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <label class="btn btn-ghost camera-btn" for="camera-input">Take a photo</label>
-            <input id="camera-input" class="sr-only" type="file" accept="image/*" capture="user">
-            <button type="button" class="btn btn-ghost" id="photo-clear" hidden>Remove photo</button>
-          </div>
-          <p id="photo-error" class="inline-error" role="alert" hidden></p>
+          <input id="photo-input" type="file" accept="image/*" class="sr-only" tabindex="-1">
+          <input id="camera-input" type="file" accept="image/*" capture="user" class="sr-only" tabindex="-1">
         </div>
-
-        <div class="flex flex-col gap-4">
-          <ul class="tips">
-            <li>Face the camera in good, even light.</li>
-            <li>Take off sunglasses and hats if you can.</li>
-            <li>JPEG, PNG or WebP. Big photos are shrunk on your device first.</li>
+        <div class="upload-aside">
+          <ul class="hint-list">
+            <li>Just one child in the photo.</li>
+            <li>Face and hair fully visible, no sunglasses.</li>
+            <li>Soft daylight beats a dark room.</li>
           </ul>
-          <p class="privacy"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Your photo is only used to make these pictures. It is not stored.</span></p>
+          <p class="privacy">Your photo is only used to make this book. It is not stored on our server.</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="camera-btn" class="btn btn-ghost btn-sm" hidden>Take a photo</button>
+            <button type="button" id="photo-clear" class="btn btn-ghost btn-sm" hidden>Use a different photo</button>
+          </div>
+          <p id="photo-error" class="err" role="alert" hidden></p>
         </div>
       </div>
     </section>
 
-    <!-- ===== 2. Cartoonify ===== -->
-    <section class="panel" aria-labelledby="h-cartoon" id="cartoon-panel">
-      <div class="panel-head">
-        <span class="chapter" aria-hidden="true">2</span>
-        <div>
-          <h2 id="h-cartoon" class="panel-title font-display">Your cartoon</h2>
-          <p class="panel-sub">Choose how you want to be drawn. Change anything and cartoonify again.</p>
+    <!-- 2. reference -->
+    <section class="step" id="step-ref" aria-labelledby="h-ref" data-locked="true">
+      <div class="step-head"><span class="step-no" aria-hidden="true">2</span><h2 id="h-ref" class="font-display">Meet your Jack</h2></div>
+      <p class="step-sub">We turn the photo into one character picture of your child as Jack. Every page reuses it, so Jack looks the same throughout.</p>
+      <div class="ref-wrap">
+        <div class="ref-frame">
+          <div id="ref-empty" class="ref-empty">Your Jack will appear here.</div>
+          <img id="ref-img" alt="Your child as Jack, in 3D animated style" hidden>
+          <div id="ref-busy" class="busy-veil" hidden><div class="bean-spin" aria-hidden="true"></div><span id="ref-busy-text">Drawing your Jack. This takes about 30 seconds.</span></div>
         </div>
-      </div>
-
-      <div class="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] items-start">
-        <form id="settings-form" class="flex flex-col gap-6" novalidate>
-          <div id="options-error" class="inline-error" role="alert" hidden>
-            <span data-part="msg"></span>
-            <button type="button" class="btn btn-small btn-ghost" id="options-retry">Try again</button>
-          </div>
-          <fieldset class="field"><legend class="field-label">Art style</legend><div class="opt-grid opt-grid-cards" id="opt-style"></div></fieldset>
-          <fieldset class="field"><legend class="field-label">How exaggerated?</legend><div class="opt-grid opt-grid-seg" id="opt-exaggeration"></div></fieldset>
-          <fieldset class="field"><legend class="field-label">Colors</legend><div class="opt-grid opt-grid-seg" id="opt-palettes"></div></fieldset>
-          <fieldset class="field"><legend class="field-label">Line weight</legend><div class="opt-grid opt-grid-seg" id="opt-lines"></div></fieldset>
-
-          <div>
-            <button type="button" class="btn btn-primary btn-wide" id="cartoon-btn" disabled>Cartoonify me</button>
-            <p class="field-hint" id="cartoon-hint">Add a photo first.</p>
-          </div>
-        </form>
-
-        <div class="stage-wrap">
-          <div class="stage" id="cartoon-stage" aria-live="polite">
-            <div class="stage-empty" data-part="empty">
-              <svg viewBox="0 0 64 64" width="56" height="56" aria-hidden="true"><path d="M32 58C20 58 10 48 10 36c0-8 6-14 12-18 4-3 6-8 10-14 4 6 6 11 10 14 6 4 12 10 12 18 0 12-10 22-22 22z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/></svg>
-              <p class="font-display">Your cartoon appears here</p>
-            </div>
-            <div class="loader-block" data-part="loading" hidden>
-              <div class="sprout" aria-hidden="true">
-                <svg viewBox="0 0 80 100" width="88" height="110"><g class="sprout-stem"><path d="M40 90 C 30 70, 52 58, 40 36" fill="none" stroke="#2D5B35" stroke-width="5" stroke-linecap="round"/><path class="sprout-leaf a" d="M40 56 C 24 46, 12 50, 8 58 C 20 68, 34 66, 40 56Z" fill="#5C8A3E"/><path class="sprout-leaf b" d="M42 42 C 56 30, 70 32, 74 40 C 62 52, 48 52, 42 42Z" fill="#2D5B35"/></g><ellipse class="sprout-bean" cx="40" cy="92" rx="14" ry="8" fill="#D9A21B"/></svg>
-              </div>
-              <p class="loader-title font-display">Drawing you&hellip;</p>
-              <p class="loader-note">This takes about 10 to 30 seconds. If the server has been asleep, the first picture can take up to a minute.</p>
-            </div>
-            <figure class="plate" data-part="done" hidden>
-              <div class="plate-frame"><img alt="Your photo redrawn as a cartoon" data-part="img"></div>
-              <figcaption data-part="caption"></figcaption>
-            </figure>
-          </div>
-          <p class="inline-error" data-part="error" role="alert" hidden></p>
-          <div class="mt-4 flex flex-wrap gap-3">
-            <button type="button" class="btn btn-ghost" id="cartoon-download" hidden>Download cartoon</button>
-            <button type="button" class="btn btn-ghost" id="cartoon-retry" hidden>Try again</button>
-          </div>
+        <div class="flex flex-col gap-3 items-start">
+          <button type="button" id="ref-btn" class="btn btn-primary" disabled>Create my Jack</button>
+          <button type="button" id="ref-retry" class="btn btn-ghost" hidden>Try a different look</button>
+          <p id="ref-note" class="text-sm text-ink-soft" hidden>A new look clears the pages below, so the whole book stays consistent.</p>
+          <div id="ref-err" class="err" role="alert" hidden><p></p><button type="button" class="btn btn-ghost btn-sm" id="ref-err-retry">Try again</button></div>
         </div>
       </div>
     </section>
 
-    <!-- ===== 3. Scenes ===== -->
-    <section class="panel" aria-labelledby="h-scenes" id="scenes-panel">
-      <div class="panel-head">
-        <span class="chapter" aria-hidden="true">3</span>
-        <div class="flex-1">
-          <h2 id="h-scenes" class="panel-title font-display">Into the story</h2>
-          <p class="panel-sub">Each card shows exactly what the picture will be asked to show. That same text becomes its caption.</p>
-        </div>
+    <!-- 3. story -->
+    <section class="step" id="step-story" aria-labelledby="h-story" data-locked="true">
+      <div class="step-head"><span class="step-no" aria-hidden="true">3</span><h2 id="h-story" class="font-display">The story so far</h2></div>
+      <p class="step-sub">Three pages. The words are printed on top of the pictures, so they stay spelled correctly. Make them one at a time or all together.</p>
+      <div class="make-all-bar">
+        <button type="button" id="make-all" class="btn btn-primary" disabled>Make all 3 pages</button>
+        <span id="cold-note" class="text-sm text-ink-soft">Each page takes about 30 to 45 seconds. The first request can take up to a minute if the server is waking up.</span>
       </div>
+      <div id="pages" class="pages-grid"></div>
+      <div class="style-note"><b>Book style</b><span id="style-text">Loading the book style...</span> Every page uses this same style.</div>
+    </section>
 
-      <div class="flex flex-wrap items-center gap-3 mb-6">
-        <button type="button" class="btn btn-gold" id="both-btn" disabled>Make both scenes</button>
-        <p class="field-hint !mt-0" id="scenes-hint">Make your cartoon first.</p>
+    <!-- 4. about me -->
+    <section class="step" id="step-about" aria-labelledby="h-about">
+      <div class="step-head"><span class="step-no" aria-hidden="true">4</span><h2 id="h-about" class="font-display">About me</h2></div>
+      <p class="step-sub">This becomes the last page of the book.</p>
+      <form id="about-form" class="about-form" novalidate></form>
+    </section>
+
+    <!-- 5. download -->
+    <section class="step" id="step-dl" aria-labelledby="h-dl">
+      <div class="step-head"><span class="step-no" aria-hidden="true">5</span><h2 id="h-dl" class="font-display">Download the book</h2></div>
+      <p class="step-sub">One PDF: your three story pages, then the About me page.</p>
+      <div class="download-row">
+        <button type="button" id="pdf-btn" class="btn btn-gold" disabled>Download the book (PDF)</button>
+        <p id="need" class="need"></p>
       </div>
-
-      <div class="grid gap-6 md:grid-cols-2" id="scene-grid"></div>
+      <div id="pdf-err" class="err" role="alert" hidden><p></p></div>
     </section>
   </main>
 
-  <footer class="foot">
-    <p>Pictures are made by an AI image model. Faces are never perfect, so try again if it misses.</p>
+  <footer class="footer">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6">
+      <a href="/scenes.html">The original two-scene version</a>
+    </div>
   </footer>
 
-  <script src="/js/app.js" type="module"></script>
+  <script src="/js/book.js"></script>
 </body>
 </html>

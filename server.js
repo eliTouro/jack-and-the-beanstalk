@@ -2,6 +2,8 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { generateImage, HttpError, MODEL } from './src/image.js';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, STYLES, EXAGGERATION, PALETTES, LINES, DEFAULT_SETTINGS } from './src/prompts.js';
+import { PAGES, PAGE_BY_ID, ABOUT_FIELDS, BOOK_STYLE, referencePrompt, pagePrompt, fixPrompt, normalizeAbout } from './src/book.js';
+import { buildBookPdf } from './src/pdf.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,11 +11,11 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 app.set('trust proxy', 1); // Render sits behind a proxy; needed for the per-IP limit.
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '40mb' }));
 app.use(express.static(fileURLToPath(new URL('./public', import.meta.url))));
 
 // --- Cost guard: a small per-IP budget of image generations per hour. ---------
-const LIMIT_PER_HOUR = Number(process.env.IMAGES_PER_HOUR || 15);
+const LIMIT_PER_HOUR = Number(process.env.IMAGES_PER_HOUR || 25);
 const usage = new Map(); // ip -> timestamps (ms) of recent generations
 function spendBudget(req) {
   const now = Date.now();
@@ -78,6 +80,82 @@ app.post('/api/scene', async (req, res, next) => {
     const image = await generateImage({ prompt: scenePrompt(sceneId, settings), images: [photo, cartoon], size: '1536x1024' });
     // The caption is the exact scene specification that was sent to the model.
     res.json({ image: toDataUrl(image), sceneId, title: SCENES[sceneId].title, caption: SCENES[sceneId].spec });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- The picture book ---------------------------------------------------------
+// Flow: photo -> reference (1 call) -> each page (1 call each, user-triggered)
+//       -> optional "fix this page" edits (1 call each) -> PDF (no model call).
+
+app.get('/api/book', (_req, res) => {
+  res.json({
+    style: BOOK_STYLE,
+    pages: PAGES.map(({ id, number, title, text, zone, tone }) => ({ id, number, title, text, zone, tone })),
+    about: ABOUT_FIELDS,
+  });
+});
+
+// Photo -> the single character reference used for every page. One model call.
+app.post('/api/book/reference', async (req, res, next) => {
+  try {
+    const photo = parseImage(req.body?.photo, 'photo');
+    spendBudget(req);
+    const image = await generateImage({ prompt: referencePrompt(), images: [photo], size: '1024x1024' });
+    res.json({ image: toDataUrl(image) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reference + photo -> one book page. One model call.
+app.post('/api/book/page', async (req, res, next) => {
+  try {
+    const pageId = req.body?.pageId;
+    if (!Object.hasOwn(PAGE_BY_ID, pageId)) throw new HttpError(400, 'Unknown page.');
+    const reference = parseImage(req.body?.reference, 'reference');
+    const photo = parseImage(req.body?.photo, 'photo');
+    spendBudget(req);
+    const image = await generateImage({ prompt: pagePrompt(pageId), images: [reference, photo], size: '1024x1536' });
+    res.json({ pageId, image: toDataUrl(image), text: PAGE_BY_ID[pageId].text });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Same page, one thing changed (image edit endpoint). One model call.
+app.post('/api/book/fix', async (req, res, next) => {
+  try {
+    const pageId = req.body?.pageId;
+    if (!Object.hasOwn(PAGE_BY_ID, pageId)) throw new HttpError(400, 'Unknown page.');
+    const instruction = typeof req.body?.instruction === 'string' ? req.body.instruction.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+    if (instruction.length < 3) throw new HttpError(400, 'Say what to change on this page.');
+    const page = parseImage(req.body?.page, 'page');
+    const reference = parseImage(req.body?.reference, 'reference');
+    spendBudget(req);
+    const image = await generateImage({ prompt: fixPrompt(pageId, instruction), images: [page, reference], size: '1024x1536' });
+    res.json({ pageId, image: toDataUrl(image), text: PAGE_BY_ID[pageId].text });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Pages + About Me -> one PDF. No model call; the text comes from the server's storyboard.
+app.post('/api/book/pdf', async (req, res, next) => {
+  try {
+    const about = normalizeAbout(req.body?.about);
+    if (!about.name) throw new HttpError(400, "Add the child's name for the About Me page.");
+    const reference = parseImage(req.body?.reference, 'reference');
+    const given = Array.isArray(req.body?.pages) ? req.body.pages : [];
+    const pages = PAGES.map((p) => {
+      const found = given.find((g) => g?.pageId === p.id);
+      if (!found) throw new HttpError(400, `Page ${p.number} hasn't been made yet.`);
+      return { ...p, image: parseImage(found.image, `page ${p.number}`) };
+    });
+    const pdf = await buildBookPdf({ pages, about, reference });
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="JackAndTheBeanstalk.pdf"' });
+    res.send(pdf);
   } catch (err) {
     next(err);
   }

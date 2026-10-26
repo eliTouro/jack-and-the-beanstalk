@@ -68,3 +68,55 @@ test('healthz reports the key is missing, never its value', async () => {
   const body = await (await fetch(base + '/healthz')).json();
   assert.equal(body.keyConfigured, false);
 });
+
+// --- Picture book ---------------------------------------------------------------
+import { PAGES, BOOK_STYLE, pagePrompt, referencePrompt, fixPrompt, normalizeAbout } from '../src/book.js';
+
+test('every book call uses the one style string, word for word', () => {
+  for (const p of PAGES) assert.ok(pagePrompt(p.id).includes(BOOK_STYLE), p.id);
+  assert.ok(referencePrompt().includes(BOOK_STYLE));
+  assert.ok(fixPrompt('trade', 'x').includes(BOOK_STYLE));
+});
+
+test('page prompts never ask the model to draw the story text', () => {
+  for (const p of PAGES) {
+    const prompt = pagePrompt(p.id);
+    assert.ok(!prompt.includes(p.text), `${p.id} leaks its text into the prompt`);
+    assert.match(prompt, /Do not draw any text/);
+  }
+});
+
+test('About Me input is trimmed and capped', () => {
+  const a = normalizeAbout({ name: '  Maya  ', about: 'x'.repeat(999), extra: 'ignored' });
+  assert.equal(a.name, 'Maya');
+  assert.equal(a.about.length, 400);
+  assert.equal('extra' in a, false);
+});
+
+test('GET /api/book lists pages 1-3 with text zones', async () => {
+  const body = await (await fetch(base + '/api/book')).json();
+  assert.deepEqual(body.pages.map((p) => p.number), [1, 2, 3]);
+  assert.ok(body.pages.every((p) => ['top', 'bottom'].includes(p.zone)));
+  assert.equal(body.style, BOOK_STYLE);
+});
+
+test('POST /api/book/pdf builds a PDF without any model call', async () => {
+  const pages = PAGES.map((p) => ({ pageId: p.id, image: tinyPng }));
+  const res = await post('/api/book/pdf', { reference: tinyPng, pages, about: { name: 'Maya', age: '9' } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'application/pdf');
+  const bytes = Buffer.from(await res.arrayBuffer());
+  assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+});
+
+test('PDF needs a name and every page', async () => {
+  const one = [{ pageId: 'cupboard', image: tinyPng }];
+  assert.equal((await post('/api/book/pdf', { reference: tinyPng, pages: one, about: { name: 'Maya' } })).status, 400);
+  const all = PAGES.map((p) => ({ pageId: p.id, image: tinyPng }));
+  assert.equal((await post('/api/book/pdf', { reference: tinyPng, pages: all, about: {} })).status, 400);
+});
+
+test('fix needs an instruction', async () => {
+  const res = await post('/api/book/fix', { pageId: 'trade', page: tinyPng, reference: tinyPng, instruction: '' });
+  assert.equal(res.status, 400);
+});

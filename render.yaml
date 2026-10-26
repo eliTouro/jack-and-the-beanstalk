@@ -18,4 +18,4 @@ services:
       - key: IMAGE_QUALITY
         value: medium
       - key: IMAGES_PER_HOUR
-        value: "15"
+        value: "25"

@@ -1,69 +1,85 @@
-# Jack and the Beanstalk: Star in the Story
+# Jack and the Beanstalk: a storybook starring your child
 
-**Live:** https://beanstalk.eliweiss.me
+**Live:** https://beanstalk.eliweiss.me · **What still needs work:** [to-do.md](to-do.md) · **Testing:** [TESTING.md](TESTING.md)
 
-Upload a photo of yourself. The app cartoonifies it in a style you choose, then casts you as Jack in two scenes from *Jack and the Beanstalk*:
+Upload a photo of a child. The app draws them once as Jack in a fixed 3D animated style, then illustrates the first pages of *Jack and the Beanstalk* with that same child on every page. The story text is printed on top of each picture, and the last page is an About Me page with the details you type in. Everything downloads as one PDF.
 
-1. **Jack plants the magic beans**
-2. **Jack climbs the beanstalk**
+The finished book is meant to be 20 pages. This build makes pages 1–3 plus About Me:
 
-Every scene picture is captioned with the exact scene specification sent to the image model, and the downloaded PNG has the caption drawn onto it.
+| Page | Picture | Text (printed by the PDF layer, never by the image model) |
+|---|---|---|
+| 1 | The empty cupboard: Jack and his mother in a bare kitchen, Milky-White through the door | Jack and his mother had nothing left to sell but Milky-White. |
+| 2 | The trade: the road to market, an old man holding out five coloured beans | "Five magic beans," said the old man. "For one cow." |
+| 3 | Out the window: the cottage at dusk, beans flung into the garden | "Beans!" she cried. And out the window they went. |
+| Last | About Me: the child's portrait, name and the details the uploader typed | |
+
+The first homework (cartoonify with settings, plus two captioned scenes) still lives at [/scenes.html](https://beanstalk.eliweiss.me/scenes.html).
 
 ## How it works
 
 ```
-browser                                server (Express, Render)                 OpenAI API
-───────                                ────────────────────────                 ──────────
-photo ─resize to ≤1024px JPEG─▶ POST /api/cartoon {photo, settings} ─1 call─▶ gpt-image-1
-                                ◀──────────── cartoon portrait ◀───────────────
-cartoon + photo ──────────────▶ POST /api/scene {sceneId:"plant", ...} ─1 call─▶
-cartoon + photo ──────────────▶ POST /api/scene {sceneId:"climb", ...} ─1 call─▶
-                                ◀──── image + caption (= the exact scene spec) ◀
+photo ──▶ POST /api/book/reference ─1 call─▶ the ONE reference image of the child as Jack
+reference + photo ──▶ POST /api/book/page {cupboard|trade|window} ─1 call each─▶ page art (1024x1536)
+page + reference + "change X" ──▶ POST /api/book/fix ─1 call─▶ same page, one thing changed (image edit)
+pages + reference + About Me ──▶ POST /api/book/pdf ─no model call─▶ JackAndTheBeanstalk.pdf
 ```
 
-- **One request = one model call.** There are no retry loops and no loops over scenes. If a call fails, the user sees the error and decides whether to click "Try again".
-- **Likeness:** each scene call gets **both** the original photo (as the identity reference) and the cartoon (as the style reference). A shared identity block in `src/prompts.js` lists the features to keep: face shape, eyes, brows, nose, mouth, skin tone, hair, facial hair, glasses and age.
-- **Scene fidelity:** the scene specs are concrete and checkable (kneeling, beans, pouch, cottage, cow / both hands on the stalk, foot on a leaf, castle in the clouds, cottage tiny below). The caption *is* the spec, so it's easy to check that the picture matches it.
-- **Settings:** style (storybook watercolor, 3D animated film, comic book, anime, claymation), exaggeration (subtle / medium / bold), palette (vivid / pastel / earthy) and line weight (none / fine / bold). The server only accepts values from these fixed menus.
-- **Privacy and cost guards:** photos are handled in memory only and never written to disk or logged by this app (OpenAI's API may keep requests briefly for abuse monitoring, under its own policy). Uploads are capped at 8 MB (JPEG, PNG or WebP). Each IP gets 15 images per hour (`IMAGES_PER_HOUR`). The key never reaches the browser.
+How the child stays the same child on every page:
+
+- **One reference image.** It's made once per book from the photo, then passed as image 1 on every page call, with the photo as image 2.
+- **One style string.** `BOOK_STYLE` in `src/book.js` is sent word for word in every call: "modern 3D animated feature film — rounded forms, large expressive eyes, soft rim light". A test checks this.
+- **Fixed descriptions** for Jack's outfit, the mother, the old man and Milky-White, so recurring characters don't drift.
+- **`gpt-image-1` with `input_fidelity: high`**, which in testing held faces far better than the mini model (see TESTING.md).
+
+How the text stays readable:
+
+- **The model never draws text.** Every image prompt says so, and a test checks that the story text never appears in a prompt.
+- **The PDF layer prints the text.** `src/pdf.js` (pdfkit) prints it in the zone each storyboard entry keeps clear (top sky or bottom third), using the embedded Andika font over a soft gradient scrim.
+
+**Editing beats regenerating.** "Fix something on this page" sends the existing page to the image edit endpoint with one change, such as "make the beans more colourful", instead of drawing a new picture.
+
+Adding page 4 (the beanstalk at dawn) and the rest means adding entries to `PAGES` in `src/book.js`. The UI, the API and the PDF all work from that list.
 
 ## Project layout
 
 | Path | What it is |
 |---|---|
-| `server.js` | Express app: static `public/`, `GET /api/options`, `POST /api/cartoon`, `POST /api/scene`, `GET /healthz` |
-| `src/image.js` | The one function that calls the image model (OpenAI `images.edit` via the `openai` SDK) |
-| `src/prompts.js` | All prompts: settings menus, identity block, cartoon prompt, the two scene specs |
-| `public/` | The single-page UI (Tailwind via CDN) |
-| `scripts/try.mjs` | Makes exactly one model call per run, used to iterate on the prompts |
-| `test/` | Offline tests: input validation, settings sanitizing, caption = spec (`npm test`) |
-| `test-faces/` | Seven AI-generated faces of people who don't exist, used for the likeness tests |
-| `test-results/thumbs/` | Contact sheets (photo, cartoon, both scenes) for each test face |
-| `TESTING.md` | The production checks (likeness and scene fidelity) on seven faces: method, results, known limitation and prompt history |
-| `render.yaml` | Render Blueprint (the key is declared with `sync: false`, so it never lives in the repo) |
+| `server.js` | Express app: static `public/`, book API (`/api/book*`), homework-1 API (`/api/cartoon`, `/api/scene`), `/healthz` |
+| `src/book.js` | Storyboard, `BOOK_STYLE`, character constants, reference / page / fix prompts, About Me fields |
+| `src/pdf.js` | Builds the PDF: full-bleed art, story text in its zone, About Me page |
+| `src/image.js` | The one function that calls the image model (OpenAI `images.edit`) |
+| `src/prompts.js` | Homework-1 prompts (cartoon settings, the plant and climb scenes) |
+| `public/index.html`, `js/book.js`, `css/book.css` | The book maker UI |
+| `public/scenes.html`, `js/scenes.js` | The homework-1 UI |
+| `assets/fonts/` | Andika (SIL OFL) and Chewy (Apache 2.0), embedded in the PDF |
+| `scripts/book.mjs` | One model call per run (reference, page or fix), plus `pdf` to assemble a book |
+| `scripts/try.mjs` | Homework-1 prompt iteration (one call per run) |
+| `samples/JackAndTheBeanstalk.pdf` | A generated sample book (synthetic child) |
+| `test/` | Offline tests (`npm test`, no key needed) |
+| `TESTING.md`, `to-do.md` | Test results, and what still needs work |
 
-## Model and API key
+## Model, key and cost
 
-- Model: **`gpt-image-1`** with `input_fidelity: high` at `medium` quality. In testing it kept faces far better than the cheaper `gpt-image-1-mini`, which invented glasses and drifted on eye color. It takes about 20�30 s per image and costs a few cents each; a full run is three images. Change `IMAGE_MODEL` / `IMAGE_QUALITY` with no code change (`gpt-image-1-mini` is the cheap option).
-- OpenAI's image models are paid-only: add prepaid credit under Billing (the Billing page lets you cap spending). They may require a one-time Organization Verification.
-- The key is read only from the `OPENAI_API_KEY` environment variable.
+- Model `gpt-image-1` at `medium` quality. A book is 4 image calls (reference + 3 pages), about 20–40 s each. Change the model with `IMAGE_MODEL` / `IMAGE_QUALITY`, no code change needed.
+- OpenAI image models are paid-only: keep prepaid credit on the account. If it runs out, every call fails with "out of credit".
+- **The key** is read only from `OPENAI_API_KEY`: locally from `.env` (git-ignored), on Render from Environment settings. It's never in the code or the repo, and never sent to the browser.
+- **Cost guard:** each IP gets `IMAGES_PER_HOUR` images (default 25). Photos are handled in memory only and never stored by this app.
 
 ## Run locally
 
 ```bash
 npm install
-cp .env.example .env      # then paste your key after OPENAI_API_KEY=  (.env is git-ignored)
-npm run dev               # http://localhost:3000
-npm test                  # offline tests, no key needed
-npm run try -- cartoon test-faces/face-1.jpg storybook    # one model call
-npm run try -- plant   test-faces/face-1.jpg storybook    # one model call (reuses that cartoon)
+cp .env.example .env                                   # paste your key after OPENAI_API_KEY=
+npm run dev                                            # http://localhost:3000
+npm test                                               # offline tests, no key needed
+node --env-file=.env scripts/book.mjs ref  test-faces/child-1.jpg            # 1 call
+node --env-file=.env scripts/book.mjs page test-faces/child-1.jpg cupboard   # 1 call per page
+node scripts/book.mjs pdf test-faces/child-1.jpg out.pdf "Name" "6" "Trucks" "Loves the park"
 ```
-
-Instead of a `.env` file, you can set the key as a Windows user environment variable with `setx OPENAI_API_KEY "your-key"`, then open a new terminal.
 
 ## Deploy (Render)
 
-1. Render → **New → Blueprint** → choose `eliTouro/jack-and-the-beanstalk`. Render reads `render.yaml`.
-2. When Render asks for `OPENAI_API_KEY`, paste the key. It's stored only in Render's environment settings.
-3. Custom domain `beanstalk.eliweiss.me`: Render → service → Settings → Custom Domains. DNS for `eliweiss.me` is at GoDaddy, so add a `CNAME` record there with host `beanstalk` pointing to `<service>.onrender.com`. Render issues the HTTPS certificate on its own.
-4. Free instances sleep when idle, so the first request after a while takes about 30–50 s. The UI says so.
+1. Render → **New → Blueprint** → `eliTouro/jack-and-the-beanstalk`. Render reads `render.yaml`. Every push to `main` redeploys.
+2. Set `OPENAI_API_KEY` in Render's Environment settings (`render.yaml` declares it with `sync: false`, so the value never lives in the repo).
+3. Custom domain `beanstalk.eliweiss.me` is a GoDaddy `CNAME` → `<service>.onrender.com`. Render issues the HTTPS certificate.
+4. Free instances sleep when idle, so the first request after a while takes about 30–50 s.
