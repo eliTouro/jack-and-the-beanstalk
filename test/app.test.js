@@ -120,3 +120,11 @@ test('fix needs an instruction', async () => {
   const res = await post('/api/book/fix', { pageId: 'trade', page: tinyPng, reference: tinyPng, instruction: '' });
   assert.equal(res.status, 400);
 });
+
+test('a page must be given every earlier page (continuity references)', async () => {
+  const res = await post('/api/book/page', { pageId: 'window', reference: tinyPng, photo: tinyPng, previous: [tinyPng] });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /page 2 first/i);
+  assert.match(pagePrompt('window', 2), /Images 3 to 4 are the earlier pages/);
+  assert.match(pagePrompt('cupboard', 0), /first page of the book/);
+});

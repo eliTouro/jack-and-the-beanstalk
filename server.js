@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { generateImage, HttpError, MODEL } from './src/image.js';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, STYLES, EXAGGERATION, PALETTES, LINES, DEFAULT_SETTINGS } from './src/prompts.js';
-import { PAGES, PAGE_BY_ID, ABOUT_FIELDS, BOOK_STYLE, referencePrompt, pagePrompt, fixPrompt, normalizeAbout } from './src/book.js';
+import { PAGES, PAGE_BY_ID, ABOUT_FIELDS, BOOK_STYLE, referencePrompt, pagePrompt, fixPrompt, normalizeAbout, pagesBefore } from './src/book.js';
 import { buildBookPdf } from './src/pdf.js';
 
 const app = express();
@@ -109,15 +109,22 @@ app.post('/api/book/reference', async (req, res, next) => {
   }
 });
 
-// Reference + photo -> one book page. One model call.
+// Reference + photo + every earlier page -> one book page, as an image edit. One model call.
+// The earlier pages go in as references so the mother, cow, cottage and Jack carry over.
 app.post('/api/book/page', async (req, res, next) => {
   try {
     const pageId = req.body?.pageId;
     if (!Object.hasOwn(PAGE_BY_ID, pageId)) throw new HttpError(400, 'Unknown page.');
     const reference = parseImage(req.body?.reference, 'reference');
     const photo = parseImage(req.body?.photo, 'photo');
+    const before = pagesBefore(pageId);
+    const given = Array.isArray(req.body?.previous) ? req.body.previous : [];
+    if (given.length !== before.length) {
+      throw new HttpError(400, before.length ? `Make page ${before.at(-1).number} first: each page builds on the pages before it.` : 'Page 1 takes no earlier pages.');
+    }
+    const previous = given.map((img, i) => parseImage(img, `page ${before[i].number}`));
     spendBudget(req);
-    const image = await generateImage({ prompt: pagePrompt(pageId), images: [reference, photo], size: '1024x1536' });
+    const image = await generateImage({ prompt: pagePrompt(pageId, previous.length), images: [reference, photo, ...previous], size: '1024x1536' });
     res.json({ pageId, image: toDataUrl(image), text: PAGE_BY_ID[pageId].text });
   } catch (err) {
     next(err);

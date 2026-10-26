@@ -138,32 +138,48 @@
   }
 
   // ---------- pages ----------
+  // Each page is an edit built on the reference, the photo AND every earlier page,
+  // so the mother, the cow, the cottage and Jack carry over from page to page.
+  function earlierIds(pageId) {
+    const ids = state.book.pages.map((p) => p.id);
+    return ids.slice(0, ids.indexOf(pageId));
+  }
+  const missingEarlier = (pageId) => earlierIds(pageId).find((id) => !state.pages[id]?.image);
+
   async function makePage(pageId) {
     const st = state.pages[pageId];
-    if (!st || st.busy || !state.reference || !state.photo) return;
+    if (!st || st.busy || !state.reference || !state.photo) return false;
+    const missing = missingEarlier(pageId);
+    if (missing) { st.error = `Make page ${pageNumber(missing)} first: each page builds on the pages before it.`; renderCard(pageId); return false; }
+    const previous = earlierIds(pageId).map((id) => state.pages[id].image);
     const epoch = state.epoch;
     st.busy = true; st.label = 'Painting this page. About 30 to 45 seconds.'; st.error = '';
     renderCard(pageId);
     renderStep3Controls();
     try {
-      const res = await api('/api/book/page', { pageId, reference: state.reference, photo: state.photo });
+      const res = await api('/api/book/page', { pageId, reference: state.reference, photo: state.photo, previous });
       const data = await res.json();
       if (epoch !== state.epoch) return;
       st.image = data.image; st.prev = null; st.text = data.text || st.text;
       say(`Page ${pageNumber(pageId)} is ready.`);
+      return true;
     } catch (e) {
-      if (epoch !== state.epoch) return;
+      if (epoch !== state.epoch) return false;
       st.error = e.message;
       say(`Page ${pageNumber(pageId)} failed. ${e.message}`);
+      return false;
     } finally {
       if (epoch === state.epoch) { st.busy = false; renderAll(); }
     }
   }
 
-  // Three explicit calls, built from the storyboard ids. No retries.
-  function makeAll() {
-    const ids = state.book.pages.map((p) => p.id);
-    return Promise.allSettled(ids.map((id) => makePage(id)));
+  // Pages in order, one call each (each needs the pages before it). Stops at the
+  // first failure; no automatic retries anywhere.
+  async function makeAll() {
+    for (const { id } of state.book.pages) {
+      if (state.pages[id]?.image) continue;
+      if (!(await makePage(id))) return;
+    }
   }
 
   async function applyFix(pageId) {
@@ -282,8 +298,10 @@
     if (has) { if (c.img.getAttribute('src') !== st.image) c.img.src = st.image; c.overlay.textContent = st.text; }
     c.veil.hidden = !st.busy; c.veilText.textContent = st.label;
     c.make.hidden = has; c.redo.hidden = !has;
-    const lock = st.busy || state.refBusy || !state.reference;
-    c.make.disabled = lock; c.redo.disabled = lock;
+    const lock = st.busy || state.refBusy || !state.reference || anyBusy();
+    const blockedBy = state.book ? missingEarlier(id) : null;
+    c.make.disabled = lock || !!blockedBy; c.redo.disabled = lock;
+    c.make.title = blockedBy ? `Make page ${pageNumber(blockedBy)} first` : '';
     c.make.setAttribute('aria-busy', String(st.busy));
     c.err.hidden = !st.error; c.errText.textContent = st.error || '';
     c.errBtn.disabled = st.busy;

@@ -14,8 +14,8 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: IMAGE_MODEL
-        value: gpt-image-1
+        value: gpt-image-2.5-flare
       - key: IMAGE_QUALITY
-        value: medium
+        value: low
       - key: IMAGES_PER_HOUR
         value: "25"

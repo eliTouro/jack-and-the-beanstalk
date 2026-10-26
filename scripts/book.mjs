@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import { generateImage, MODEL } from '../src/image.js';
-import { PAGE_BY_ID, PAGES, referencePrompt, pagePrompt, fixPrompt, normalizeAbout } from '../src/book.js';
+import { PAGE_BY_ID, PAGES, referencePrompt, pagePrompt, fixPrompt, normalizeAbout, pagesBefore } from '../src/book.js';
 import { buildBookPdf } from '../src/pdf.js';
 
 const [mode, photoPath, ...rest] = process.argv.slice(2);
@@ -41,7 +41,10 @@ if (mode === 'ref') {
   if (!PAGE_BY_ID[pageId]) usage();
   const reference = await load(`${stem}-reference.jpg`);
   if (mode === 'page') {
-    await save(pageId, await generateImage({ prompt: pagePrompt(pageId), images: [reference, await load(photoPath)], size: '1024x1536' }), started);
+    // Earlier pages of this book go in as continuity references (images 3, 4, ...).
+    const previous = await Promise.all(pagesBefore(pageId).map((p) => load(`${stem}-${p.id}.jpg`)));
+    const images = [reference, await load(photoPath), ...previous];
+    await save(pageId, await generateImage({ prompt: pagePrompt(pageId, previous.length), images, size: '1024x1536' }), started);
   } else {
     const instruction = rest[1];
     if (!instruction) usage();

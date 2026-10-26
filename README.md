@@ -19,7 +19,7 @@ The first homework (cartoonify with settings, plus two captioned scenes) still l
 
 ```
 photo ──▶ POST /api/book/reference ─1 call─▶ the ONE reference image of the child as Jack
-reference + photo ──▶ POST /api/book/page {cupboard|trade|window} ─1 call each─▶ page art (1024x1536)
+reference + photo + earlier pages ──▶ POST /api/book/page {cupboard|trade|window} ─1 edit call each─▶ page art (1024x1536)
 page + reference + "change X" ──▶ POST /api/book/fix ─1 call─▶ same page, one thing changed (image edit)
 pages + reference + About Me ──▶ POST /api/book/pdf ─no model call─▶ JackAndTheBeanstalk.pdf
 ```
@@ -27,9 +27,10 @@ pages + reference + About Me ──▶ POST /api/book/pdf ─no model call─▶
 How the child stays the same child on every page:
 
 - **One reference image.** It's made once per book from the photo, then passed as image 1 on every page call, with the photo as image 2.
+- **Earlier pages as references.** Pages are made in order, and each page is an image edit that also receives every earlier page (images 3+). The mother, Milky-White, the cottage and Jack's clothes therefore carry over instead of being redrawn.
 - **One style string.** `BOOK_STYLE` in `src/book.js` is sent word for word in every call: "modern 3D animated feature film — rounded forms, large expressive eyes, soft rim light". A test checks this.
 - **Fixed descriptions** for Jack's outfit, the mother, the old man and Milky-White, so recurring characters don't drift.
-- **`gpt-image-1` with `input_fidelity: high`**, which in testing held faces far better than the mini model (see TESTING.md).
+- **`gpt-image-2.5-flare` at low quality**: cheap and fast, and in testing it held the child consistently across pages (see TESTING.md).
 
 How the text stays readable:
 
@@ -56,11 +57,11 @@ Adding page 4 (the beanstalk at dawn) and the rest means adding entries to `PAGE
 | `scripts/try.mjs` | Homework-1 prompt iteration (one call per run) |
 | `samples/JackAndTheBeanstalk.pdf` | A generated sample book (synthetic child) |
 | `test/` | Offline tests (`npm test`, no key needed) |
-| `TESTING.md`, `to-do.md` | Test results, and what still needs work |
+| `TESTING.md`, `TESTING-homework1.md`, `to-do.md` | Book test results, homework-1 test results, and what still needs work |
 
 ## Model, key and cost
 
-- Model `gpt-image-1` at `medium` quality. A book is 4 image calls (reference + 3 pages), about 20–40 s each. Change the model with `IMAGE_MODEL` / `IMAGE_QUALITY`, no code change needed.
+- Model `gpt-image-2.5-flare` at `low` quality. A book is 4 image calls (reference + 3 pages), about 10–20 s each. Change the model with `IMAGE_MODEL` / `IMAGE_QUALITY`, no code change needed. (`gpt-image-1`, the homework-1 model, has been retired.)
 - OpenAI image models are paid-only: keep prepaid credit on the account. If it runs out, every call fails with "out of credit".
 - **The key** is read only from `OPENAI_API_KEY`: locally from `.env` (git-ignored), on Render from Environment settings. It's never in the code or the repo, and never sent to the browser.
 - **Cost guard:** each IP gets `IMAGES_PER_HOUR` images (default 25). Photos are handled in memory only and never stored by this app.

@@ -54,9 +54,9 @@ export const PAGES = [
       `Jack stands facing the viewer and looks at his mother with a worried face. ${MOTHER} She stands beside the table. ` +
       `Through the open cottage door behind them, ${COW} is clearly visible outside in the yard.`,
     composition:
-      "Jack's full face is clearly visible, front-lit by warm light from a window, eyes turned toward his mother. Medium shot: Jack and his mother fill the middle of the picture.",
+      "Jack's full face is clearly visible, front-lit by warm light from a window, eyes turned toward his mother. Jack and his mother stand in the middle of the picture, seen from a slightly raised camera, so their feet are about two-thirds of the way down the picture.",
     textSpace:
-      'Keep the bottom third of the picture calm and simple (plain floorboards in soft shadow, no faces or important objects): the story text will be printed there.',
+      'The bottom third of the picture is only plain floorboards in soft shadow: no faces, hands, feet or important objects there. The story text will be printed there.',
   },
   {
     id: 'trade',
@@ -67,9 +67,9 @@ export const PAGES = [
     tone: 'dark',
     scene:
       `A winding dirt road to market between green fields and hedgerows. Jack holds ${COW} by her rope. ` +
-      `Facing Jack stands ${OLD_MAN}. The old man holds out his open palm with exactly five beans in it, each a different bright color: red, blue, yellow, purple and green.`,
+      `Facing Jack stands ${OLD_MAN}. The old man holds out his open palm with exactly FIVE beans in it, no more and no fewer, each a different bright color: one red, one blue, one yellow, one purple and one green, large enough to count.`,
     composition:
-      'Jack is in three-quarter view, face clearly visible, looking at the beans with wonder. Jack wears exactly the same clothes as on page 1. All characters stand in the lower two-thirds of the picture.',
+      'Jack is in three-quarter view, face clearly visible, looking at the beans with wonder. Jack wears exactly the same clothes as on page 1. The old man is fully inside the picture, his whole face visible. All characters stand in the lower two-thirds of the picture.',
     textSpace:
       'Leave the top third of the picture as open, plain, pale sky with only a few soft clouds: the story text will be printed there.',
   },
@@ -84,15 +84,18 @@ export const PAGES = [
       `The outside of the cottage at dusk. ${MOTHER} She leans out of a lit cottage window, angrily flinging the beans away; ` +
       'the five colorful beans scatter through the air and fall into the garden below. Jack stands in the open cottage doorway, watching, face lit by warm light from inside.',
     composition:
-      "A darker palette than the earlier pages: deep blue and violet dusk sky, warm orange window and door light. Jack's face is visible, in three-quarter or front view.",
+      "A darker palette than the earlier pages: deep blue and violet dusk sky, warm orange window and door light. Jack's face is visible, in three-quarter or front view. The doorway, the window and the characters are in the upper two-thirds of the picture.",
     textSpace:
-      'The bottom third of the picture is dark, quiet grass with no important detail: the story text will be printed there.',
+      'The bottom third of the picture is only dark, quiet grass: no faces, feet or important objects there. The story text will be printed there.',
   },
   // Page 4 (the beanstalk at dawn) and the earlier "plant" / "climb" scenes slot in
   // here as more entries with the same shape; nothing else needs to change.
 ];
 
 export const PAGE_BY_ID = Object.fromEntries(PAGES.map((p) => [p.id, p]));
+
+// The pages before this one, which a page call receives as continuity references.
+export const pagesBefore = (pageId) => PAGES.slice(0, PAGES.findIndex((p) => p.id === pageId));
 
 export function referencePrompt() {
   return [
@@ -106,11 +109,18 @@ export function referencePrompt() {
   ].join('\n');
 }
 
-export function pagePrompt(pageId) {
+// previousCount: how many earlier pages are passed as images 3, 4, ... (in page order).
+export function pagePrompt(pageId, previousCount = 0) {
   const page = PAGE_BY_ID[pageId];
+  const continuity = previousCount
+    ? `Images 3${previousCount > 1 ? ` to ${2 + previousCount}` : ''} are the earlier pages of this same book, in order. ` +
+      'Keep continuity with them: Jack, his mother, the old man, Milky-White the cow, the cottage, its rooms and Jack’s clothes must look exactly the same as in those pages, ' +
+      'and the lighting and rendering must match. Do not copy their composition: this page is a new scene.'
+    : 'This is the first page of the book: it sets how the mother, the cow and the cottage look for every later page.';
   return [
     `Illustrate page ${page.number} of a children's picture book of "Jack and the Beanstalk" as one full-page picture.`,
     'Image 1 is the character reference for Jack, the hero. Image 2 is the real photo of the child Jack is based on.',
+    continuity,
     'Jack must look exactly like the character in image 1 on every page: same face, hair, skin tone and clothes. Image 2 wins any disagreement about the face, skin tone, hair or eye color.',
     CHILD_IDENTITY,
     JACK_OUTFIT,

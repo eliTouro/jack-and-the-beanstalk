@@ -1,25 +1,28 @@
 # To do
 
-What in this build still needs work, most important first.
+What in this build still needs work, most important first. Evidence is in [TESTING.md](TESTING.md).
 
-## Not done yet in this iteration
+## Likeness and consistency
 
-- **The book prompts haven't been tested on real images.** The OpenAI account ran out of credit just as book testing started, so the reference, page and fix prompts in `src/book.js` have been written but not yet run on any test child. Until that's done I don't know whether Jack's face holds from page 1 to page 3, whether page 2 really shows exactly five coloured beans, or whether the text zones (bottom third on pages 1 and 3, top sky on page 2) actually stay empty.
-- **No sample PDF yet.** `samples/JackAndTheBeanstalk.pdf` needs one real run on a synthetic child once there is credit again.
-- **Playground pass not done.** The brief asks for the style words to be tried by hand in the OpenAI Playground first. So far the style string was written from the brief and not compared against alternatives there.
-- **Only one child test face so far** (`test-faces/face-2.jpg`). The plan is three synthetic children: a boy about 6 with dark skin, a girl about 7 with glasses, and the existing girl about 9.
+- **When the reference drifts from the photo, every page drifts with it.** For one test child (`face-2`, a low-contrast photo) the reference came out younger and lighter-skinned, with blue-green eyes instead of grey-brown. All three pages copied the reference faithfully, so the book is consistent but not quite that child. Fix ideas:
+  - Show the reference to the parent before any pages are made, with "Try a different look" (the button exists, but the UI doesn't stress this step yet).
+  - Add skin tone and eye colour to the reference prompt as explicit "copy from the photo" items.
+- **Jack is small on page 3.** In the doorway at dusk his face is only about 60 px tall on a 1024×1536 page. It's still recognizable for all three test children, but that's where likeness will fail first. The page-3 composition could bring the doorway closer.
+- **Continuity relies on passing earlier pages in.** Page 3 receives pages 1 and 2. A 20-page book can't pass 19 earlier pages, so it will need a fixed "cast sheet" image (mother, cow, old man, cottage), made once and passed instead.
+- **Story text is gendered.** "Jack and his mother" stays as written in the brief even for a girl's book. The pictures keep the child's own gender, but the text doesn't adapt. Possible fix: let the uploader pick a name and pronouns for the hero.
 
-## Known weaknesses carried over from homework 1
+## Process gaps
 
-- **Adults and teens can drift towards "a boy".** "Jack" pulls the model towards drawing a young boy. In homework 1 a woman in her 40s came out boyish in both scenes (TESTING.md, face 7). For the book the subject is a child, which makes this less of a problem, but it's still a risk for girls. The prompt says "Jack is only the role name", which wasn't enough for adults.
-- **Story text is still gendered.** The storyboard uses "his mother" because that's the assigned text. A girl's book still says "Jack and his mother". Possible fix: let the uploader choose he/she/they and a name for the hero.
-- **Small faces lose detail.** On page 2 (three-quarter view on a road) and page 3 (Jack small in a doorway at dusk), the face is small, and in homework 1 small faces are where likeness slipped first.
+- **No Playground pass.** The brief asks for style words to be tried by hand in the OpenAI Playground first. I iterated with scripts (`scripts/book.mjs`) and reviewed every image visually, but I didn't compare alternative style wordings side by side in the Playground.
+- **Only three synthetic test children,** and no real children's photos (deliberately, for privacy). Untested: a child with a hat or headscarf, twins or siblings in one photo, a blurry phone photo, or a side-on face.
+- **No full book run on the live site yet.** Render's `IMAGE_MODEL` was `gpt-image-1`, which OpenAI has retired. It has to be updated to `gpt-image-2.5-flare` before the live site can make images again.
 
 ## Product gaps
 
-- **No cover or title page.** The book jumps straight into page 1. A cover with the child's name would make it feel finished.
-- **Making all three pages takes about 1–2 minutes**, with no saving: a reload loses everything. Pages could be kept in IndexedDB.
-- **The "Fix something" edit sometimes redraws more than the one thing asked for.** That's a model behaviour; there's no mask yet to limit the edit to a region.
-- **Free Render instance cold start** of about 30–50 s on the first request after idling.
-- **Page 4 and on** (the beanstalk at dawn, the giant's castle, and the two homework-1 scenes as pages) are planned. They are new entries in `PAGES` in `src/book.js`; the plant and climb scene specs in `src/prompts.js` need rewriting in the book style first.
-- **The rate limit is per IP and in memory.** It resets when Render restarts and isn't shared if Render ever runs more than one instance.
+- **No cover or title page.** The book opens straight on page 1. A cover with the child's name would make it feel finished.
+- **Nothing is saved.** A full book takes about 1 minute (4 calls at about 10–20 s each), and reloading the page loses it. Pages could be kept in IndexedDB.
+- **Redoing an early page doesn't refresh later ones.** If page 1 is redone, pages 2 and 3 were built on the old page 1 and may no longer match. The UI should mark them as out of date.
+- **"Fix something" edits can't be masked.** In the one test it changed only what was asked (the beans), but nothing limits an edit to a region, so a vague request could redraw more.
+- **Page numbers are tiny and land on the art.** They're readable in the PDF, but they're placed by zone rather than designed.
+- **Free Render instance cold start** of about 30–50 s after idling. The per-IP rate limit is in memory and resets on restart.
+- **Page 4 onward** (the beanstalk at dawn, then the homework-1 plant and climb scenes as pages) aren't built. Each is a new entry in `PAGES` in `src/book.js`; the UI, API and PDF already work from that list.
