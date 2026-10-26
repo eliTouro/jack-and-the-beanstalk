@@ -50,9 +50,13 @@ Two other findings:
 - **`gpt-image-1` was retired.** It returns "model does not exist", even though it's still listed for the key. The previous default stopped working on its own.
 - **Flare at low quality is about 2x faster** (10–20 s per image) and cheaper. At this quality it looked as good as or better than 1.5 at medium for this style.
 
+## Live site
+
+I ran one full book on https://beanstalk.eliweiss.me through its public API, the same calls the UI makes: reference 10 s, pages 11–14 s each, PDF 2 s. That's about 50 s in total for child-1. The PDF came back as `JackAndTheBeanstalk.pdf` with 4 pages: same child and mother throughout, text in the clear zones, About Me last.
+
 ## Not tested
 
 - **Playground.** Prompts were iterated by script and visual review, not in the OpenAI Playground.
 - **Real children's photos.** Only synthetic faces were used.
 - **Phones.** The UI and the PDF download were checked in desktop and mobile-width browsers only, not on real phones.
-- **Live site.** I didn't do a full book run on the live site, because Render still points at the retired model until its environment variable is updated.
+
