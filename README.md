@@ -2,7 +2,7 @@
 
 **Live:** https://beanstalk.eliweiss.me · **What still needs work:** [to-do.md](to-do.md) · **Testing:** [TESTING.md](TESTING.md)
 
-Upload a photo of a child. The app draws them once as Jack in a fixed 3D animated style, then illustrates the first pages of *Jack and the Beanstalk* with that same child on every page. The story text is printed on top of each picture, and the last page is an About Me page with the details you type in. Everything downloads as one PDF.
+Upload a photo of a child. The app draws them once as Jack, keeping the child's own look and gender (a boy's photo gives a boy Jack, a girl's photo gives a girl), in a fixed 3D animated style, then illustrates the first pages of *Jack and the Beanstalk* with that same child on every page. The story text is printed on top of each picture, and the last page is an About Me page with the details you type in. Everything downloads as one PDF.
 
 The finished book is meant to be 20 pages. This build makes pages 1–3 plus About Me:
 
@@ -55,7 +55,7 @@ Adding page 4 (the beanstalk at dawn) and the rest means adding entries to `PAGE
 | `assets/fonts/` | Andika (SIL OFL) and Chewy (Apache 2.0), embedded in the PDF |
 | `scripts/book.mjs` | One model call per run (reference, page or fix), plus `pdf` to assemble a book |
 | `scripts/try.mjs` | Homework-1 prompt iteration (one call per run) |
-| `samples/JackAndTheBeanstalk.pdf` | A generated sample book (synthetic child) |
+| `samples/JackAndTheBeanstalk.pdf` | A sample book made on the live site (synthetic boy, "Theo") |
 | `test/` | Offline tests (`npm test`, no key needed) |
 | `TESTING.md`, `TESTING-homework1.md`, `to-do.md` | Book test results, homework-1 test results, and what still needs work |
 

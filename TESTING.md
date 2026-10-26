@@ -21,7 +21,7 @@ For the book, three things have to hold:
 | Child | Same child on all pages | Matches the photo | Storyboard | Text zones clear | Notes |
 |---|---|---|---|---|---|
 | child-1 | yes | yes (curly hair, missing tooth) | yes | yes | Jack is small in the page-3 doorway, but still recognizable |
-| child-2 | yes | yes (red glasses and bob on every page) | yes | yes | Best result; used for the sample PDF |
+| child-2 | yes | yes (red glasses and bob on every page) | yes | yes | Best likeness of the three |
 | face-2 | yes | **partly** | yes | yes | The reference came out younger and lighter, with blue-green eyes, and every page inherits that. The pages match each other, not quite the photo |
 
 Storyboard details checked:
@@ -52,7 +52,7 @@ Two other findings:
 
 ## Live site
 
-I ran one full book on https://beanstalk.eliweiss.me through its public API, the same calls the UI makes: reference 10 s, pages 11–14 s each, PDF 2 s. That's about 50 s in total for child-1. The PDF came back as `JackAndTheBeanstalk.pdf` with 4 pages: same child and mother throughout, text in the clear zones, About Me last.
+I ran one full book on https://beanstalk.eliweiss.me through its public API, the same calls the UI makes: reference 10 s, pages 11–14 s each, PDF 2 s. That's about 50 s in total for child-1. The PDF came back as `JackAndTheBeanstalk.pdf` with 4 pages (this is the submitted sample, `samples/JackAndTheBeanstalk.pdf`, for "Theo"): same child and mother throughout, text in the clear zones, About Me last.
 
 ## Not tested
 
