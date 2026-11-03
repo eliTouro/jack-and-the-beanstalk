@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sample storybook</title>
+  <meta name="description" content="A sample Jack and the Beanstalk picture book, and the photo it was made from.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#F2E6C8">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%AB%98%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/book.css">
+  <style>
+    .sample { max-width: 40rem; margin: 0 auto; padding: 40px 20px 72px; }
+    .sample h1 { font-family: Fraunces, Georgia, serif; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.08; letter-spacing: -0.03em; color: var(--bean-deep); margin: 0; }
+    .sample .lede { margin: 14px 0 0; font-size: 1.08rem; color: var(--ink-soft); }
+    .snap-row { display: grid; grid-template-columns: 9.5rem 1fr; gap: 22px; align-items: center; margin: 36px 0 44px; }
+    .snap { position: relative; margin: 0; padding: 8px 8px 28px; background: #FFFDF6; transform: rotate(-3deg); box-shadow: var(--shadow-elevated); }
+    .snap img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; }
+    .snap figcaption { position: absolute; left: 0; right: 0; bottom: 5px; text-align: center; font-size: .78rem; color: var(--ink-soft); }
+    .snap::before { content: ""; position: absolute; top: -10px; left: 50%; width: 64px; height: 20px; margin-left: -32px; background: rgba(217, 162, 27, .45); transform: rotate(4deg); }
+    .snap-note { margin: 0; color: var(--ink); }
+    .book { display: grid; gap: 34px; margin: 0; padding: 0; list-style: none; }
+    .book figure { margin: 0; }
+    .book img { display: block; width: 100%; height: auto; border-radius: 4px 10px 10px 4px; box-shadow: var(--shadow-floating); background: var(--paper); }
+    .book figcaption { margin-top: 10px; font-size: .92rem; color: var(--ink-soft); }
+    .after { margin-top: 44px; padding: 20px 22px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-elevated); }
+    .after p { margin: 0 0 12px; }
+    .after a { color: var(--bean-deep); font-weight: 600; text-underline-offset: 3px; }
+    .after a:hover { color: var(--bean); }
+    .after a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+    .after a:active { opacity: .7; }
+    @media (max-width: 480px) { .snap-row { grid-template-columns: 7.5rem 1fr; gap: 16px; } }
+  </style>
+</head>
+<body style="font-family: 'DM Sans', system-ui, sans-serif">
+  <main class="sample">
+    <h1>A sample storybook</h1>
+    <p class="lede">A website turned one photo of a child into this four-page picture book. Please look through all of it, then go back to the survey.</p>
+
+    <div class="snap-row">
+      <figure class="snap">
+        <img src="/sample/photo.jpg" alt="Photo of a smiling boy of about six with dark skin and short curly hair" width="640" height="640">
+        <figcaption>The photo</figcaption>
+      </figure>
+      <p class="snap-note">This is the only photo the website was given. In the book, the boy plays Jack. His name for the book is Theo.</p>
+    </div>
+
+    <ol class="book">
+      <li><figure><img src="/sample/page-1.jpg" alt="Page 1 of the book" width="660" height="990" loading="lazy"><figcaption>Page 1 of 4</figcaption></figure></li>
+      <li><figure><img src="/sample/page-2.jpg" alt="Page 2 of the book" width="660" height="990" loading="lazy"><figcaption>Page 2 of 4</figcaption></figure></li>
+      <li><figure><img src="/sample/page-3.jpg" alt="Page 3 of the book" width="660" height="990" loading="lazy"><figcaption>Page 3 of 4</figcaption></figure></li>
+      <li><figure><img src="/sample/page-4.jpg" alt="Page 4 of the book: About me" width="660" height="990" loading="lazy"><figcaption>Page 4 of 4, the last page</figcaption></figure></li>
+    </ol>
+
+    <div class="after">
+      <p>That's the whole book. You can also <a href="/sample/JackAndTheBeanstalk.pdf" target="_blank" rel="noopener">open it as a PDF</a>.</p>
+      <p>Now go back to the survey tab and answer the questions.</p>
+    </div>
+  </main>
+</body>
+</html>
