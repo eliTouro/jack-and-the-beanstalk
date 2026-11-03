@@ -2,21 +2,22 @@
 // Each model mode makes exactly ONE image call per run (no loops); run it once per page.
 //
 //   node --env-file-if-exists=.env scripts/book.mjs ref    test-faces/child-1.jpg
+//   node --env-file-if-exists=.env scripts/book.mjs cast   test-faces/child-1.jpg
 //   node --env-file-if-exists=.env scripts/book.mjs page   test-faces/child-1.jpg cupboard|trade|window
 //   node --env-file-if-exists=.env scripts/book.mjs fix    test-faces/child-1.jpg <pageId> "make the beans bigger"
 //   node scripts/book.mjs pdf test-faces/child-1.jpg out.pdf "Name" "Age" "Favorite things" "More about me"   (no model call)
 //
-// Files go to test-results/book/<face>[-TAG]-{reference,<pageId>}.jpg (set TRY_TAG to keep versions apart).
+// Files go to test-results/book/<face>[-TAG]-{reference,cast,<pageId>}.jpg (set TRY_TAG to keep versions apart).
 
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import { generateImage, MODEL } from '../src/image.js';
-import { PAGE_BY_ID, PAGES, referencePrompt, pagePrompt, fixPrompt, normalizeAbout, pagesBefore } from '../src/book.js';
+import { PAGE_BY_ID, PAGES, referencePrompt, castPrompt, pagePrompt, fixPrompt, normalizeAbout } from '../src/book.js';
 import { buildBookPdf } from '../src/pdf.js';
 
 const [mode, photoPath, ...rest] = process.argv.slice(2);
 const usage = () => {
-  console.error('usage: book.mjs ref|page|fix|pdf <photo> ... (see the header of scripts/book.mjs)');
+  console.error('usage: book.mjs ref|cast|page|fix|pdf <photo> ... (see the header of scripts/book.mjs)');
   process.exit(1);
 };
 if (!mode || !photoPath) usage();
@@ -36,15 +37,16 @@ async function save(name, image, started) {
 const started = Date.now();
 if (mode === 'ref') {
   await save('reference', await generateImage({ prompt: referencePrompt(), images: [await load(photoPath)], size: '1024x1024' }), started);
+} else if (mode === 'cast') {
+  await save('cast', await generateImage({ prompt: castPrompt(), images: [await load(photoPath)], size: '1536x1024' }), started);
 } else if (mode === 'page' || mode === 'fix') {
   const pageId = rest[0];
   if (!PAGE_BY_ID[pageId]) usage();
   const reference = await load(`${stem}-reference.jpg`);
   if (mode === 'page') {
-    // Earlier pages of this book go in as continuity references (images 3, 4, ...).
-    const previous = await Promise.all(pagesBefore(pageId).map((p) => load(`${stem}-${p.id}.jpg`)));
-    const images = [reference, await load(photoPath), ...previous];
-    await save(pageId, await generateImage({ prompt: pagePrompt(pageId, previous.length), images, size: '1024x1536' }), started);
+    // Same inputs as the server: the reference and the cast sheet (run `ref` and `cast` first).
+    const images = [reference, await load(`${stem}-cast.jpg`)];
+    await save(pageId, await generateImage({ prompt: pagePrompt(pageId), images, size: '1024x1536' }), started);
   } else {
     const instruction = rest[1];
     if (!instruction) usage();

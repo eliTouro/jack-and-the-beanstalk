@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jack and the Beanstalk: a storybook starring your child</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%AB%98%3C/text%3E%3C/svg%3E">
-  <meta name="description" content="Upload a photo and your child becomes Jack in a three-page picture book you can download as a PDF.">
+  <meta name="description" content="Sign in, upload a photo, and your child becomes Jack in an illustrated picture book that is saved to your account and downloads as a PDF.">
   <meta name="theme-color" content="#F2E6C8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,10 +34,18 @@
   <link rel="stylesheet" href="/css/book.css">
 </head>
 <body class="font-body text-ink">
-  <a href="#main" class="skip-link">Skip to the book</a>
+  <a href="#main" class="skip-link">Skip to the content</a>
   <div id="status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
-  <header class="hero">
+  <!-- top bar: on every view -->
+  <nav class="topbar" aria-label="Account">
+    <div class="topbar-in mx-auto w-full max-w-5xl px-4 sm:px-6">
+      <a id="brand" class="brand" href="/"><span class="brand-bean" aria-hidden="true"></span>Jack and the Beanstalk</a>
+      <div id="account" class="account"></div>
+    </div>
+  </nav>
+
+  <header id="hero" class="hero">
     <svg class="hero-stalk" viewBox="0 0 220 640" aria-hidden="true" focusable="false">
       <g class="cloud">
         <ellipse cx="110" cy="64" rx="86" ry="26" fill="#FBF4E1"/>
@@ -63,96 +71,170 @@
     <div class="mx-auto w-full max-w-5xl px-4 sm:px-6 relative">
       <p class="eyebrow">A picture book, made for one child</p>
       <h1 class="hero-title font-display">A storybook starring <em>your child</em></h1>
-      <p class="hero-lede">Upload one photo. Your child becomes Jack, trades the cow for magic beans, and ends up on three illustrated pages you can download and print.</p>
-      <ol class="hero-steps" aria-label="How it works">
-        <li>Add a photo</li><li>Meet your Jack</li><li>Make the pages</li><li>Fill in About me</li><li>Download the PDF</li>
+      <p id="hero-lede" class="hero-lede">Sign in and upload one photo. Your child becomes Jack, trades the cow for magic beans, and ends up in an illustrated book we draw for you and save to your account.</p>
+      <ol id="hero-steps" class="hero-steps" aria-label="How it works">
+        <li>Sign in</li><li>Add a photo</li><li>We draw the pictures</li><li>Fill in About me</li><li>Download the PDF</li>
       </ol>
     </div>
   </header>
 
-  <main id="main" class="mx-auto w-full max-w-5xl px-4 sm:px-6">
+  <main id="main" tabindex="-1" class="mx-auto w-full max-w-5xl px-4 sm:px-6">
+    <div id="global-err" class="err" role="alert" hidden><p></p></div>
 
-    <!-- 1. photo -->
-    <section class="step" aria-labelledby="h-photo">
-      <div class="step-head"><span class="step-no" aria-hidden="true">1</span><h2 id="h-photo" class="font-display">Add a photo</h2></div>
-      <p class="step-sub">One child, face clearly visible, in good light. Straight-on photos work best.</p>
-      <div class="upload-grid">
-        <div>
-          <label id="drop" class="drop" for="photo-input" tabindex="0" role="button" aria-describedby="photo-hint">
-            <div id="drop-empty" class="drop-inner">
-              <svg class="drop-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="12" width="38" height="28" rx="5"/><circle cx="24" cy="26" r="7"/><path d="M17 12l3-5h8l3 5"/></svg>
-              <strong>Drop a photo here, or tap to choose</strong>
-              <span id="photo-hint">JPG, PNG or WebP. We shrink it on your device first.</span>
-            </div>
-            <img id="photo-preview" class="photo-preview" alt="The photo you chose" hidden>
-          </label>
-          <input id="photo-input" type="file" accept="image/*" class="sr-only" tabindex="-1">
-          <input id="camera-input" type="file" accept="image/*" capture="user" class="sr-only" tabindex="-1">
+    <!-- signed out -->
+    <section id="view-out" class="step" aria-labelledby="h-out" hidden>
+      <div class="step-head"><h2 id="h-out" class="font-display">Make a book of your own</h2></div>
+      <p class="step-sub">Your books are saved to your Google account. We draw the pictures on our side, so you can close this page and come back to a finished book, redo any page, and download the PDF whenever you like.</p>
+      <div class="cta-row">
+        <a id="cta-signin" class="btn btn-primary" href="/auth/google">Sign in with Google to make a book</a>
+        <a class="link-btn" href="/sample.html">See a sample book</a>
+      </div>
+    </section>
+
+    <!-- shelf -->
+    <div id="view-shelf" hidden>
+      <section class="step" aria-labelledby="h-shelf">
+        <div class="step-head shelf-head">
+          <h2 id="h-shelf" class="font-display">My books</h2>
+          <a id="to-new" class="link-btn" href="#new-book">New book</a>
         </div>
-        <div class="upload-aside">
-          <ul class="hint-list">
-            <li>Just one child in the photo.</li>
-            <li>Face and hair fully visible, no sunglasses.</li>
-            <li>Soft daylight beats a dark room.</li>
-          </ul>
-          <p class="privacy">Your photo is only used to make this book. It is not stored on our server.</p>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" id="camera-btn" class="btn btn-ghost btn-sm" hidden>Take a photo</button>
-            <button type="button" id="photo-clear" class="btn btn-ghost btn-sm" hidden>Use a different photo</button>
+        <div id="shelf-err" class="err" role="alert" hidden><p></p></div>
+        <p id="shelf-loading" class="step-sub">Loading your books...</p>
+        <ul id="shelf" class="shelf" hidden></ul>
+        <div id="shelf-empty" class="shelf-empty" hidden>
+          <p>You have no books yet. Add a photo below and we will draw your first one.</p>
+          <a id="to-new-empty" class="btn btn-ghost btn-sm" href="#new-book">Make your first book</a>
+        </div>
+      </section>
+
+      <section class="step" id="new-book" aria-labelledby="h-new">
+        <div class="step-head"><h2 id="h-new" class="font-display">New book</h2></div>
+        <p class="step-sub">One child, face clearly visible, in good light. Straight-on photos work best. We start drawing as soon as you make the book, and it keeps going if you close this page.</p>
+        <div class="upload-grid">
+          <div>
+            <label id="drop" class="drop" for="photo-input" tabindex="0" role="button" aria-describedby="photo-hint">
+              <div id="drop-empty" class="drop-inner">
+                <svg class="drop-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="12" width="38" height="28" rx="5"/><circle cx="24" cy="26" r="7"/><path d="M17 12l3-5h8l3 5"/></svg>
+                <strong>Drop a photo here, or tap to choose</strong>
+                <span id="photo-hint">JPG, PNG or WebP. We shrink it on your device first.</span>
+              </div>
+              <img id="photo-preview" class="photo-preview" alt="The photo you chose" hidden>
+            </label>
+            <input id="photo-input" type="file" accept="image/*" class="sr-only" tabindex="-1">
+            <input id="camera-input" type="file" accept="image/*" capture="user" class="sr-only" tabindex="-1">
           </div>
-          <p id="photo-error" class="err" role="alert" hidden></p>
+          <div class="upload-aside">
+            <ul class="hint-list">
+              <li>Just one child in the photo.</li>
+              <li>Face and hair fully visible, no sunglasses.</li>
+              <li>Soft daylight beats a dark room.</li>
+            </ul>
+            <p class="privacy">Your photo is saved with the book in your account so pages can be redone. Deleting the book deletes the photo.</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="camera-btn" class="btn btn-ghost btn-sm" hidden>Take a photo</button>
+              <button type="button" id="photo-clear" class="btn btn-ghost btn-sm" hidden>Use a different photo</button>
+            </div>
+            <p id="photo-error" class="err" role="alert" hidden></p>
+            <div>
+              <button type="button" id="make-btn" class="btn btn-primary" disabled>Make my book</button>
+            </div>
+            <div id="make-err" class="err" role="alert" hidden><p></p></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- one book -->
+    <div id="view-book" hidden>
+      <div class="book-head">
+        <a id="back-link" class="back-link" href="/"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>My books</a>
+        <div class="book-id">
+          <img id="book-photo" class="book-photo" alt="The photo this book was made from" hidden>
+          <div>
+            <h1 id="book-title" class="book-title font-display">Your book</h1>
+            <p id="book-meta" class="book-meta"></p>
+          </div>
         </div>
       </div>
-    </section>
+      <div id="book-err" class="err" role="alert" hidden><p></p></div>
+      <p id="book-loading" class="step-sub book-loading">Loading your book...</p>
 
-    <!-- 2. reference -->
-    <section class="step" id="step-ref" aria-labelledby="h-ref" data-locked="true">
-      <div class="step-head"><span class="step-no" aria-hidden="true">2</span><h2 id="h-ref" class="font-display">Meet your Jack</h2></div>
-      <p class="step-sub">We turn the photo into one character picture of your child as Jack. Every page reuses it, so Jack looks the same throughout.</p>
-      <div class="ref-wrap">
-        <div class="ref-frame">
-          <div id="ref-empty" class="ref-empty">Your Jack will appear here.</div>
-          <img id="ref-img" alt="Your child as Jack, in 3D animated style" hidden>
-          <div id="ref-busy" class="busy-veil" hidden><div class="bean-spin" aria-hidden="true"></div><span id="ref-busy-text">Drawing your Jack. This takes about 30 seconds.</span></div>
+      <div id="book-body" hidden>
+        <!-- progress, one row per picture -->
+        <section id="prog-panel" class="step prog" aria-labelledby="prog-title">
+          <details id="prog">
+            <summary>
+              <span class="prog-top">
+                <h2 id="prog-title" class="font-display">Your pictures</h2>
+                <span id="prog-count" class="prog-count" role="status" aria-live="polite"></span>
+              </span>
+              <span id="prog-bar" class="bar bar-lg" role="progressbar" aria-label="All pictures" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span class="bar-fill"></span></span>
+            </summary>
+            <ul id="prog-rows" class="prog-rows"></ul>
+          </details>
+        </section>
+
+        <!-- reference + cast -->
+        <section class="step" id="step-ref" aria-labelledby="h-ref">
+          <div class="step-head"><h2 id="h-ref" class="font-display">Meet your Jack</h2></div>
+          <p class="step-sub">This is your child as Jack. Every page reuses this picture, so Jack looks the same throughout.</p>
+          <div class="ref-wrap">
+            <div class="ref-frame">
+              <div id="ref-empty" class="ref-empty">Your Jack will appear here.</div>
+              <img id="ref-img" alt="Your child as Jack, in 3D animated style" hidden>
+              <div id="ref-busy" class="busy-veil" hidden><div class="bean-spin" aria-hidden="true"></div><span id="ref-busy-text"></span></div>
+            </div>
+            <div class="flex flex-col gap-3 items-start">
+              <button type="button" id="ref-retry" class="btn btn-ghost">Try a different look</button>
+              <p class="text-sm text-ink-soft">A new look also redraws the cast sheet and all 3 pages, so the whole book stays consistent.</p>
+              <div id="ref-err" class="err" role="alert" hidden><p></p><button type="button" class="btn btn-ghost btn-sm" id="ref-err-retry">Try again</button></div>
+              <figure class="cast-fig">
+                <div class="ref-frame cast-frame">
+                  <div id="cast-empty" class="ref-empty">The cast sheet will appear here.</div>
+                  <img id="cast-img" alt="The cast sheet: Jack's mother, Milky-White the cow, the old man and the cottage" hidden>
+                  <div id="cast-busy" class="busy-veil" hidden><div class="bean-spin" aria-hidden="true"></div><span id="cast-busy-text"></span></div>
+                </div>
+                <figcaption>The cast: Jack's mother, Milky-White, the old man and the cottage</figcaption>
+                <div id="cast-err" class="err" role="alert" hidden><p></p><button type="button" class="btn btn-ghost btn-sm" id="cast-err-retry">Try again</button></div>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        <!-- story pages -->
+        <section class="step" id="step-story" aria-labelledby="h-story">
+          <div class="step-head"><h2 id="h-story" class="font-display">The story</h2></div>
+          <p class="step-sub">Three pages. The words are printed on top of the pictures, so they stay spelled correctly.</p>
+          <div id="pages" class="pages-grid"></div>
+          <div class="style-note"><b>Book style</b><span id="style-text"></span> Every page uses this same style.</div>
+        </section>
+
+        <!-- about me -->
+        <section class="step" id="step-about" aria-labelledby="h-about">
+          <div class="step-head"><h2 id="h-about" class="font-display">About me</h2></div>
+          <p class="step-sub">This becomes the last page of the book. Your changes save as you type.</p>
+          <form id="about-form" class="about-form" novalidate></form>
+          <div class="save-row">
+            <span id="save-status" class="save-status" role="status" aria-live="polite"></span>
+            <button type="button" id="save-retry" class="link-btn" hidden>Try saving again</button>
+          </div>
+        </section>
+
+        <!-- download -->
+        <section class="step" id="step-dl" aria-labelledby="h-dl">
+          <div class="step-head"><h2 id="h-dl" class="font-display">Download the book</h2></div>
+          <p class="step-sub">One PDF: your three story pages, then the About me page.</p>
+          <div class="download-row">
+            <a id="pdf-btn" class="btn btn-gold" aria-disabled="true" download>Download the book (PDF)</a>
+            <p id="need" class="need"></p>
+          </div>
+        </section>
+
+        <div class="book-foot">
+          <button type="button" id="delete-btn" class="link-btn link-danger">Delete this book</button>
         </div>
-        <div class="flex flex-col gap-3 items-start">
-          <button type="button" id="ref-btn" class="btn btn-primary" disabled>Create my Jack</button>
-          <button type="button" id="ref-retry" class="btn btn-ghost" hidden>Try a different look</button>
-          <p id="ref-note" class="text-sm text-ink-soft" hidden>A new look clears the pages below, so the whole book stays consistent.</p>
-          <div id="ref-err" class="err" role="alert" hidden><p></p><button type="button" class="btn btn-ghost btn-sm" id="ref-err-retry">Try again</button></div>
-        </div>
       </div>
-    </section>
-
-    <!-- 3. story -->
-    <section class="step" id="step-story" aria-labelledby="h-story" data-locked="true">
-      <div class="step-head"><span class="step-no" aria-hidden="true">3</span><h2 id="h-story" class="font-display">The story so far</h2></div>
-      <p class="step-sub">Three pages. The words are printed on top of the pictures, so they stay spelled correctly. Make them one at a time or all together.</p>
-      <div class="make-all-bar">
-        <button type="button" id="make-all" class="btn btn-primary" disabled>Make all 3 pages</button>
-        <span id="cold-note" class="text-sm text-ink-soft">Each page takes about 30 to 45 seconds. The first request can take up to a minute if the server is waking up.</span>
-      </div>
-      <div id="pages" class="pages-grid"></div>
-      <div class="style-note"><b>Book style</b><span id="style-text">Loading the book style...</span> Every page uses this same style.</div>
-    </section>
-
-    <!-- 4. about me -->
-    <section class="step" id="step-about" aria-labelledby="h-about">
-      <div class="step-head"><span class="step-no" aria-hidden="true">4</span><h2 id="h-about" class="font-display">About me</h2></div>
-      <p class="step-sub">This becomes the last page of the book.</p>
-      <form id="about-form" class="about-form" novalidate></form>
-    </section>
-
-    <!-- 5. download -->
-    <section class="step" id="step-dl" aria-labelledby="h-dl">
-      <div class="step-head"><span class="step-no" aria-hidden="true">5</span><h2 id="h-dl" class="font-display">Download the book</h2></div>
-      <p class="step-sub">One PDF: your three story pages, then the About me page.</p>
-      <div class="download-row">
-        <button type="button" id="pdf-btn" class="btn btn-gold" disabled>Download the book (PDF)</button>
-        <p id="need" class="need"></p>
-      </div>
-      <div id="pdf-err" class="err" role="alert" hidden><p></p></div>
-    </section>
+    </div>
   </main>
 
   <footer class="footer">
