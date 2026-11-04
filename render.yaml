@@ -1,5 +1,5 @@
 # Render Blueprint: Render -> New -> Blueprint -> pick this repo.
-# The API key is NOT stored here: `sync: false` makes Render ask for it in the dashboard.
+# No secret is stored here: `sync: false` makes Render ask for the value in the dashboard.
 services:
   - type: web
     name: jack-and-the-beanstalk
@@ -11,11 +11,23 @@ services:
     domains:
       - beanstalk.eliweiss.me
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: OPENAI_API_KEY
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
       - key: IMAGE_MODEL
         value: gpt-image-2.5-flare
       - key: IMAGE_QUALITY
         value: low
       - key: IMAGES_PER_HOUR
-        value: "25"
+        value: "30"
+      - key: IMAGES_PER_DAY
+        value: "300"

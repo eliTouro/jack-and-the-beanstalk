@@ -1,8 +1,12 @@
 import OpenAI, { toFile } from 'openai';
+import { log } from './log.js';
 
 // Swap models with the IMAGE_MODEL env var; no code change needed.
 export const MODEL = process.env.IMAGE_MODEL || 'gpt-image-2.5-flare';
 const QUALITY = process.env.IMAGE_QUALITY || 'low'; // low | medium | high
+// IMAGE_PROVIDER=mock skips the API: after a short random wait it returns the first
+// input image. Free and fast, for testing sign-in, storage and the progress bars.
+export const isMock = () => process.env.IMAGE_PROVIDER === 'mock';
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -32,6 +36,7 @@ function fidelityFor(model) {
 //
 // images: [{ data: base64, mimeType }]   size: '1024x1024' | '1536x1024' | '1024x1536'
 export async function generateImage({ prompt, images, size = '1024x1024' }) {
+  if (isMock()) return mockImage(images);
   const files = await Promise.all(
     images.map((img, i) => toFile(Buffer.from(img.data, 'base64'), `image-${i + 1}.${img.mimeType.split('/')[1]}`, { type: img.mimeType })),
   );
@@ -54,10 +59,18 @@ export async function generateImage({ prompt, images, size = '1024x1024' }) {
   return { data, mimeType: 'image/jpeg' };
 }
 
+async function mockImage(images) {
+  const min = Number(process.env.MOCK_MIN_MS ?? 3000);
+  const max = Number(process.env.MOCK_MAX_MS ?? 9000);
+  await new Promise((r) => setTimeout(r, min + Math.random() * Math.max(0, max - min)));
+  if (!images.length) throw new HttpError(400, 'Mock mode needs an input image.');
+  return { data: images[0].data, mimeType: images[0].mimeType };
+}
+
 function translateError(err) {
   if (err instanceof HttpError) return err;
   const status = err?.status;
-  console.error('Image API error', status, err?.code, err?.message);
+  log.error({ status, code: err?.code, message: err?.message }, 'image API error');
   if (err?.code === 'moderation_blocked' || /safety|moderation/i.test(err?.message || '')) {
     return new HttpError(422, 'The image service declined that photo or scene (safety filter). Try a different, clearer photo.');
   }

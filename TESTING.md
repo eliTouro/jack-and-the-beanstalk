@@ -60,3 +60,77 @@ I ran one full book on https://beanstalk.eliweiss.me through its public API, the
 - **Real children's photos.** Only synthetic faces were used.
 - **Phones.** The UI and the PDF download were checked in desktop and mobile-width browsers only, not on real phones.
 
+
+## Homework 3: parallel generation, sign-in and storage
+
+### Parallel pipeline (real API, `gpt-image-2.5-flare`, low)
+
+Two real books were run through the new server pipeline:
+
+1. Sign in, then `POST /api/books`.
+2. Round 1, in parallel: the reference and the cast sheet.
+3. Round 2, in parallel: all 3 pages.
+
+| Child | Round 1 (reference + cast) | Round 2 (3 pages) | Total | Result |
+|---|---|---|---|---|
+| child-1 | 11–13 s | 13–14 s | **28 s** | Pages 1–2 fine. Page 3 was **blocked by the safety filter**. |
+| child-2 | 13 s | 11–15 s | **28 s** | All 5 fine: red glasses and bob on every page, the same mother, cow and old man throughout |
+
+The old chained pipeline took about 50 s for the same book. Sheets: [child-1](test-results/thumbs/hw3-parallel-child-1.jpg), [child-2](test-results/thumbs/hw3-parallel-child-2.jpg).
+
+**The page-3 block.** I ran one diagnostic call per change:
+
+1. Softening the wording from "angrily flinging" to "a cross, disappointed frown, tossing": **still blocked**.
+2. The same page without the child's real photo (only the reference and the cast sheet): **passed**. Jack was larger and clearly recognizable, all five beans were in flight, and it was dusk.
+
+Pages 1 and 2 had passed with the photo attached, so the photo isn't always blocked. But the photo plus a dark scene with an upset adult was enough to trip the filter.
+
+**Change:** page calls now send only the reference and the cast sheet. The child-2 book above was made that way, and its likeness held.
+
+### Sign-in, storage and progress (mock images, no cost)
+
+- **`npm test`: 23 offline tests** with mock images and an in-memory Postgres (PGlite). They check that:
+  - book routes need sign-in
+  - Jack and the cast start together, and the pages start only after both finish
+  - the 3 pages overlap in time (parallel)
+  - pictures are served only to their owner
+  - the PDF needs a name and builds without a model call
+  - fix keeps the old page and Undo restores it
+  - a failed picture keeps its old image and shows the reason, with no retry
+  - deleting removes the book
+- **Browser, mock mode:**
+  - Dev sign-in, upload, then "Make my book".
+  - The progress panel showed one bar per picture: "Drawing… about 14 s left" for Jack and the cast, "Waiting" for the pages, then "Done" row by row and "All 5 pictures ready".
+  - About me autosaved, and the PDF downloaded as `Theo-JackAndTheBeanstalk.pdf`.
+  - After a reload, the book and its name were still there under My books.
+  - The layout was checked at desktop and 375 px phone width; no console errors.
+- **Not tested yet:**
+  - real Google sign-in end to end (the client ID is accepted by Google; signing in needs a real account on a registered address)
+  - the deployed version
+
+### Neon database (real, mock images)
+
+With the real `DATABASE_URL` in `.env`, I signed in with dev login, made a book with mock images, set a name, and restarted the server. After the restart, the same book was listed with all its pictures and name, and the session cookie still worked. The test book was then deleted.
+
+### Story rewrite after the feedback (real API, `gpt-image-2.5-flare`, low)
+
+Changes from the human and AI feedback:
+
+- The text explains why Mother throws the beans out.
+- A fourth page shows the beanstalk the next morning.
+- The child's name is in the text.
+- "their cow, Milky-White" is said the first time.
+- The beans are speckled instead of five bright colours.
+
+Test on child-1 (`TRY_TAG=f3`), reusing the earlier reference and page 1:
+
+| Picture | Time | Result |
+|---|---|---|
+| Cast sheet | 16 s | Old man holds speckled cream and plum beans |
+| Page 2, the trade | 14 s | First try: the old man's hat reached the top text zone, and the longer text ran over it. Shortened the text and added "every head, including the top of the old man's hat, stays below the top third". The redraw is clean. |
+| Page 3, the window | 13 s | Speckled beans fall from the window. Not blocked. |
+| Page 4, the beanstalk | 12 s | Jack at the foot of a huge beanstalk at sunrise, with the cottage beside it |
+
+![child-1 after the rewrite](test-results/thumbs/hw3-story-child-1.jpg)
+
+In the browser (mock images): typing a name updates all four page texts at once, the progress panel shows "All 6 pictures ready", and the PDF downloads.

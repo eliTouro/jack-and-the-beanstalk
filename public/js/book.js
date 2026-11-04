@@ -1,42 +1,198 @@
 /* A storybook starring your child.
-   Flow: photo -> reference (1 call) -> pages (1 call each, user triggered) -> fixes -> PDF.
-   There is NO automatic retry anywhere: every model call comes from one click. */
+   Sign in with Google, make a book, and the server draws every picture. This page
+   only starts the work and polls for per-picture progress, so a book survives a closed tab.
+   Views: signed out, shelf (my books), one book (?book=<id>). */
 (() => {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
   const MAX_SIDE = 1024;
+  const POLL_MS = 1500;        // book progress while anything is drawing
+  const SHELF_POLL_MS = 3000;  // shelf refresh while any book is drawing
+  const SAVE_DEBOUNCE_MS = 800;
+  const SITE = 'Jack and the Beanstalk';
+
+  const HERO_OUT = 'Sign in and upload one photo. Your child becomes Jack, trades the cow for magic beans, and ends up in an illustrated book we draw for you and save to your account.';
+  const HERO_SHELF = 'Pick up where you left off, or start a new book from a photo.';
 
   const state = {
-    book: null,          // { style, pages, about }
-    photo: null,         // dataURL (resized JPEG)
-    reference: null,     // dataURL
-    pages: {},           // id -> { image, prev, text, busy, label, error, fixText, fixOpen }
-    refBusy: false,
-    refError: '',
-    pdfBusy: false,
-    epoch: 0,            // bumps when photo/reference change so stale responses are ignored
+    me: null,            // { user, signInUrl, devLogin }
+    story: null,         // /api/book: { style, pages, about, slots }
+    photo: null,         // dataURL (resized JPEG) for a new book
+    making: false,
+    books: null,         // shelf
+    seed: null,          // book returned by POST /api/books, used to skip one fetch
+    bookId: null,
+    book: null,
+    clockOffset: 0,      // server now minus browser now, captured at each fetch
+    rev: 0,              // bumps on every write so a stale poll response is dropped
+    working: false,      // a POST is in flight
+    pageErr: {},         // slot id (or "fix:<id>") -> message from a failed request
+    about: { dirty: false, saving: false },
+    prevAttention: undefined,
   };
-  const cards = {};      // id -> element refs
+  const rows = {};       // slot id -> progress row refs
+  const cards = {};      // page id -> card refs
+  let built = null;      // id of the book the view was built for
+  let viewToken = 0;     // bumps on every route change; async work compares it
+  let pollTimer = null, tickTimer = null, shelfTimer = null, saveTimer = null;
 
   const say = (msg) => { $('status').textContent = ''; setTimeout(() => { $('status').textContent = msg; }, 20); };
-  const anyBusy = () => state.refBusy || Object.values(state.pages).some((p) => p.busy);
 
   // ---------- api ----------
-  async function api(path, body) {
+  class ApiError extends Error {
+    constructor(message, status) { super(message); this.status = status; }
+  }
+
+  async function api(method, path, body) {
     let res;
     try {
-      res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      res = await fetch(path, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        credentials: 'same-origin',
+        keepalive: method === 'PATCH', // lets a last autosave finish while the page closes
+      });
     } catch {
-      throw new Error('Could not reach the server. Check your connection and try again.');
+      throw new ApiError('Could not reach the server. Check your connection and try again.', 0);
     }
     if (!res.ok) {
       let msg = '';
       try { msg = (await res.json()).error; } catch { /* not json */ }
       if (res.status === 429) msg = msg || 'Too many requests right now. Wait a moment, then try again.';
-      throw new Error(msg || `Something went wrong (${res.status}).`);
+      if (res.status === 401) onUnauthorized();
+      throw new ApiError(msg || `Something went wrong (${res.status}).`, res.status);
     }
-    return res;
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  function onUnauthorized() {
+    if (!state.me?.user) return;
+    state.me.user = null;
+    renderAccount();
+    route();
+  }
+
+  function showErr(box, msg) {
+    box.hidden = !msg;
+    const p = box.tagName === 'P' ? box : box.querySelector('p');
+    if (p) p.textContent = msg || '';
+  }
+
+  // ---------- small helpers ----------
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function fmtDate(v) {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  const slotOf = (id) => state.book?.slots.find((s) => s.id === id);
+  const isBusy = (s) => !!s && (s.status === 'queued' || s.status === 'running');
+  const anySlotBusy = () => !!state.book && state.book.slots.some(isBusy);
+  const sharedBusy = () => isBusy(slotOf('reference')) || isBusy(slotOf('cast'));
+  const pageLocked = (id) => state.working || isBusy(slotOf(id)) || sharedBusy();
+
+  function setImg(img, slot) {
+    const show = slot?.status === 'done' && !!slot.imageUrl;
+    img.hidden = !show;
+    if (show && img.getAttribute('src') !== slot.imageUrl) img.src = slot.imageUrl;
+    return show;
+  }
+
+  // Same-page navigation for links that point at our own views.
+  function onNav(a) {
+    a.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      navigate(a.getAttribute('href'));
+    });
+  }
+
+  function navigate(url, seedBook) {
+    state.seed = seedBook || null;
+    history.pushState(null, '', url);
+    route();
+    $('main').focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- account ----------
+  function avatar(user) {
+    const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase() || '?';
+    const fallback = () => { const s = el('span', 'avatar avatar-initial', initial); s.setAttribute('aria-hidden', 'true'); return s; };
+    if (!user.picture) return fallback();
+    const img = el('img', 'avatar');
+    img.alt = ''; img.referrerPolicy = 'no-referrer'; img.src = user.picture;
+    img.addEventListener('error', () => img.replaceWith(fallback()));
+    return img;
+  }
+
+  function renderAccount() {
+    const host = $('account');
+    host.textContent = '';
+    const user = state.me?.user;
+    const signInUrl = state.me?.signInUrl || '/auth/google';
+    $('cta-signin').href = signInUrl;
+    if (user) {
+      host.append(avatar(user), el('span', 'acct-name', user.name || user.email));
+      const out = el('button', 'btn btn-ghost btn-sm', 'Sign out'); out.type = 'button';
+      out.addEventListener('click', signOut);
+      host.append(out);
+      return;
+    }
+    const a = el('a', 'btn btn-primary btn-sm', 'Sign in with Google'); a.href = signInUrl;
+    host.append(a);
+    if (state.me?.devLogin) {
+      const d = el('a', 'link-btn dev-link', 'Dev sign-in'); d.href = '/auth/dev-login';
+      host.append(d);
+    }
+  }
+
+  async function signOut() {
+    try {
+      await api('POST', '/auth/logout');
+      location.reload();
+    } catch (e) {
+      showErr($('global-err'), e.message);
+    }
+  }
+
+  // ---------- views ----------
+  function showView(name) {
+    $('view-out').hidden = name !== 'out';
+    $('view-shelf').hidden = name !== 'shelf';
+    $('view-book').hidden = name !== 'book';
+    $('hero').hidden = name === 'book';
+    $('hero').classList.toggle('hero-short', name === 'shelf');
+    $('hero-steps').hidden = name !== 'out';
+    $('hero-lede').textContent = name === 'shelf' ? HERO_SHELF : HERO_OUT;
+    if (name === 'out') document.title = `${SITE}: a storybook starring your child`;
+    if (name === 'shelf') document.title = `My books | ${SITE}`;
+  }
+
+  function teardown() {
+    clearTimeout(pollTimer); clearTimeout(shelfTimer);
+    clearInterval(tickTimer); tickTimer = null;
+    if (state.me?.user && state.bookId && state.about.dirty && !state.about.saving) saveAbout(); // keep the last edits
+    clearTimeout(saveTimer);
+    viewToken++;
+    state.bookId = null; state.book = null; built = null;
+  }
+
+  function route() {
+    teardown();
+    showErr($('global-err'), '');
+    if (!state.me?.user) { showView('out'); return; }
+    const id = new URLSearchParams(location.search).get('book');
+    if (id) enterBook(id); else enterShelf();
   }
 
   // ---------- photo ----------
@@ -62,180 +218,366 @@
   }
 
   function showPhotoError(msg) {
-    const el = $('photo-error');
-    el.textContent = msg || '';
-    el.hidden = !msg;
+    const e = $('photo-error');
+    e.textContent = msg || '';
+    e.hidden = !msg;
   }
 
   async function handleFile(file) {
     showPhotoError('');
+    showErr($('make-err'), '');
     if (!file) return;
     if (!file.type.startsWith('image/')) { showPhotoError('Please choose an image file.'); return; }
     try {
       const data = await resizeToDataUrl(file);
-      resetAll();
+      resetPhoto();
       state.photo = data;
       $('photo-preview').src = data;
       $('photo-preview').hidden = false;
       $('drop-empty').hidden = true;
       $('photo-clear').hidden = false;
-      say('Photo added. Next, create your Jack.');
-      renderAll();
+      say('Photo added. Next, make your book.');
+      renderMake();
     } catch (e) {
       showPhotoError(e.message);
     }
   }
 
-  function resetAll() {
-    state.epoch++;
-    state.reference = null;
-    state.refBusy = false;
-    state.refError = '';
+  function resetPhoto() {
     state.photo = null;
-    resetPages();
     $('photo-preview').hidden = true;
     $('photo-preview').removeAttribute('src');
     $('drop-empty').hidden = false;
     $('photo-clear').hidden = true;
     $('photo-input').value = '';
     $('camera-input').value = '';
+    renderMake();
   }
 
-  function resetPages() {
-    state.epoch++;
-    for (const p of state.book?.pages || []) {
-      state.pages[p.id] = { image: null, prev: null, text: p.text, busy: false, label: '', error: '', fixText: '', fixOpen: false };
-    }
+  function renderMake() {
+    $('make-btn').disabled = !state.photo || state.making;
+    $('make-btn').textContent = state.making ? 'Starting your book...' : 'Make my book';
   }
 
-  // ---------- reference ----------
-  async function makeReference() {
-    if (!state.photo || anyBusy()) return;
-    const epoch = ++state.epoch;
-    const hadOne = !!state.reference;
-    state.refBusy = true; state.refError = '';
-    $('ref-busy-text').textContent = hadOne
-      ? 'Drawing a new look. About 30 seconds.'
-      : 'Drawing your Jack. About 30 seconds, or up to a minute if the server is waking up.';
-    renderAll();
-    say('Creating your Jack.');
-    let stale = false;
+  async function makeBook() {
+    if (!state.photo || state.making) return;
+    state.making = true; renderMake();
+    showErr($('make-err'), '');
     try {
-      const res = await api('/api/book/reference', { photo: state.photo });
-      const { image } = await res.json();
-      if (epoch !== state.epoch) { stale = true; return; }
-      state.reference = image;
-      state.refBusy = false;
-      resetPages(); // pages must match the reference they were made from
-      say('Your Jack is ready.');
+      const { book } = await api('POST', '/api/books', { photo: state.photo });
+      resetPhoto();
+      navigate(`/?book=${encodeURIComponent(book.id)}`, book);
     } catch (e) {
-      if (epoch !== state.epoch) { stale = true; return; }
-      state.refError = e.message;
-      say('Could not create your Jack. ' + e.message);
+      if (e.status !== 401) showErr($('make-err'), e.message);
     } finally {
-      if (!stale) { state.refBusy = false; renderAll(); }
+      state.making = false; renderMake();
     }
   }
 
-  // ---------- pages ----------
-  // Each page is an edit built on the reference, the photo AND every earlier page,
-  // so the mother, the cow, the cottage and Jack carry over from page to page.
-  function earlierIds(pageId) {
-    const ids = state.book.pages.map((p) => p.id);
-    return ids.slice(0, ids.indexOf(pageId));
+  function wireUpload() {
+    const drop = $('drop');
+    $('photo-input').addEventListener('change', (e) => handleFile(e.target.files[0]));
+    $('camera-input').addEventListener('change', (e) => handleFile(e.target.files[0]));
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('photo-input').click(); } });
+    ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('is-over'); }));
+    ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('is-over'); }));
+    drop.addEventListener('drop', (e) => handleFile(e.dataTransfer?.files?.[0]));
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      $('camera-btn').hidden = false;
+      $('camera-btn').addEventListener('click', () => $('camera-input').click());
+    }
+    $('photo-clear').addEventListener('click', () => { resetPhoto(); showPhotoError(''); $('photo-input').click(); });
+    $('make-btn').addEventListener('click', makeBook);
+    for (const id of ['to-new', 'to-new-empty']) {
+      $(id).addEventListener('click', (e) => {
+        e.preventDefault();
+        const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        $('new-book').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+        drop.focus({ preventScroll: true });
+      });
+    }
   }
-  const missingEarlier = (pageId) => earlierIds(pageId).find((id) => !state.pages[id]?.image);
 
-  async function makePage(pageId) {
-    const st = state.pages[pageId];
-    if (!st || st.busy || !state.reference || !state.photo) return false;
-    const missing = missingEarlier(pageId);
-    if (missing) { st.error = `Make page ${pageNumber(missing)} first: each page builds on the pages before it.`; renderCard(pageId); return false; }
-    const previous = earlierIds(pageId).map((id) => state.pages[id].image);
-    const epoch = state.epoch;
-    st.busy = true; st.label = 'Painting this page. About 30 to 45 seconds.'; st.error = '';
-    renderCard(pageId);
-    renderStep3Controls();
+  // ---------- shelf ----------
+  function enterShelf() {
+    const view = viewToken;
+    showView('shelf');
+    $('shelf-loading').hidden = false;
+    $('shelf').hidden = true; $('shelf-empty').hidden = true;
+    showErr($('shelf-err'), '');
+    state.books = null;
+    renderMake();
+    loadShelf(view);
+  }
+
+  async function loadShelf(view) {
     try {
-      const res = await api('/api/book/page', { pageId, reference: state.reference, photo: state.photo, previous });
-      const data = await res.json();
-      if (epoch !== state.epoch) return;
-      st.image = data.image; st.prev = null; st.text = data.text || st.text;
-      say(`Page ${pageNumber(pageId)} is ready.`);
-      return true;
+      const { books } = await api('GET', '/api/books');
+      if (view !== viewToken) return;
+      state.books = books;
+      showErr($('shelf-err'), '');
+      renderShelf();
     } catch (e) {
-      if (epoch !== state.epoch) return false;
-      st.error = e.message;
-      say(`Page ${pageNumber(pageId)} failed. ${e.message}`);
-      return false;
-    } finally {
-      if (epoch === state.epoch) { st.busy = false; renderAll(); }
+      if (view !== viewToken) return;
+      $('shelf-loading').hidden = true;
+      if (e.status !== 401) showErr($('shelf-err'), e.message);
     }
+    if (view === viewToken && state.books?.some((b) => b.busy)) shelfTimer = setTimeout(() => loadShelf(view), SHELF_POLL_MS);
   }
 
-  // Pages in order, one call each (each needs the pages before it). Stops at the
-  // first failure; no automatic retries anywhere.
-  async function makeAll() {
-    for (const { id } of state.book.pages) {
-      if (state.pages[id]?.image) continue;
-      if (!(await makePage(id))) return;
+  function bookCard(b) {
+    const li = el('li');
+    const a = el('a', 'book-card');
+    a.href = `/?book=${encodeURIComponent(b.id)}`;
+    onNav(a);
+
+    const frame = el('div', 'page-frame book-thumb');
+    if (b.thumbUrl) {
+      const img = el('img', 'page-img'); img.src = b.thumbUrl; img.alt = ''; img.loading = 'lazy';
+      frame.append(img);
+    } else {
+      const blank = el('div', 'page-blank');
+      blank.append(el('span', 'txt', b.busy ? 'Drawing...' : 'A blank page'));
+      frame.append(blank);
     }
+
+    const ready = b.total > 0 && b.done >= b.total;
+    const status = el('span', 'book-status');
+    status.dataset.ready = String(ready);
+    if (b.busy) status.append(el('span', 'bean-spin sm'));
+    status.append(el('span', null, ready ? 'Ready' : `${b.done} of ${b.total} pictures`));
+    if (b.busy) status.append(el('span', 'book-drawing', 'Drawing'));
+
+    a.append(frame, el('span', 'book-name font-display', b.name || 'Untitled book'), el('span', 'book-date', `Created ${fmtDate(b.createdAt)}`), status);
+    li.append(a);
+    return li;
   }
 
-  async function applyFix(pageId) {
-    const st = state.pages[pageId];
-    const instruction = (st.fixText || '').trim();
-    if (!st || st.busy || !st.image) return;
-    if (instruction.length < 3) { st.error = 'Say what to change on this page.'; renderCard(pageId); return; }
-    const epoch = state.epoch;
-    st.busy = true; st.label = 'Applying your fix. About 30 to 45 seconds.'; st.error = '';
-    renderCard(pageId); renderStep3Controls();
+  function renderShelf() {
+    $('shelf-loading').hidden = true;
+    const books = state.books || [];
+    const list = $('shelf');
+    list.textContent = '';
+    for (const b of books) list.append(bookCard(b));
+    list.hidden = !books.length;
+    $('shelf-empty').hidden = books.length > 0;
+  }
+
+  // ---------- one book: load and apply ----------
+  async function ensureStory() {
+    if (!state.story) state.story = await api('GET', '/api/book');
+  }
+
+  async function enterBook(id) {
+    const view = viewToken;
+    showView('book');
+    state.bookId = id; built = null; state.book = null;
+    $('book-title').textContent = 'Your book'; $('book-meta').textContent = '';
+    $('book-photo').hidden = true;
+    $('book-body').hidden = true; $('book-loading').hidden = false;
+    showErr($('book-err'), '');
+    const seed = state.seed; state.seed = null;
     try {
-      const res = await api('/api/book/fix', { pageId, page: st.image, reference: state.reference, instruction: instruction.slice(0, 300) });
-      const data = await res.json();
-      if (epoch !== state.epoch) return;
-      st.prev = st.image; st.image = data.image; st.text = data.text || st.text; st.fixText = '';
-      say(`Page ${pageNumber(pageId)} updated.`);
+      await ensureStory();
+      const book = seed && seed.id === id ? seed : (await api('GET', `/api/books/${encodeURIComponent(id)}`)).book;
+      if (view !== viewToken) return;
+      $('book-loading').hidden = true; $('book-body').hidden = false;
+      applyBook(book);
     } catch (e) {
-      if (epoch !== state.epoch) return;
-      st.error = e.message;
-      say(`The fix failed. ${e.message}`);
-    } finally {
-      if (epoch === state.epoch) { st.busy = false; renderAll(); }
+      if (view !== viewToken || e.status === 401) return;
+      $('book-loading').hidden = true;
+      showErr($('book-err'), e.message);
     }
   }
 
-  function undoFix(pageId) {
-    const st = state.pages[pageId];
-    if (!st || st.busy || !st.prev) return;
-    st.image = st.prev; st.prev = null; st.error = '';
-    renderCard(pageId); renderStep3Controls();
-    say(`Page ${pageNumber(pageId)} restored to the version before the fix.`);
+  function applyBook(book) {
+    if (book.id !== state.bookId) return;
+    const prev = state.book;
+    state.book = book;
+    state.clockOffset = (book.now ?? Date.now()) - Date.now();
+    state.rev++;
+    if (built !== book.id) buildBookView(book);
+    announce(prev, book);
+    renderBook();
+    syncTicker();
+    schedulePoll();
   }
 
-  const pageNumber = (id) => state.book.pages.find((p) => p.id === id)?.number;
+  function announce(prev, book) {
+    if (!prev) return;
+    for (const s of book.slots) {
+      const before = prev.slots.find((p) => p.id === s.id)?.status;
+      if (before === s.status) continue;
+      if (s.status === 'done' && (before === 'running' || before === 'queued')) say(`${s.label} is ready.`);
+      if (s.status === 'error') say(`${s.label} failed. ${s.error || ''}`);
+    }
+  }
 
-  // ---------- rendering ----------
-  function el(tag, cls, text) {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    if (state.book?.busy && state.bookId) pollTimer = setTimeout(poll, POLL_MS);
+  }
+
+  async function poll() {
+    const id = state.bookId, rev = state.rev, view = viewToken;
+    if (!id) return;
+    try {
+      const { book } = await api('GET', `/api/books/${encodeURIComponent(id)}`);
+      if (view !== viewToken) return;
+      if (rev !== state.rev) { schedulePoll(); return; } // a write landed meanwhile; this reply may be older
+      showErr($('book-err'), '');
+      applyBook(book);
+    } catch (e) {
+      if (view !== viewToken || e.status === 401) return;
+      showErr($('book-err'), `Could not refresh progress. ${e.message}`);
+      if (e.status !== 404) schedulePoll();
+    }
+  }
+
+  // ---------- progress ----------
+  const nowMs = () => Date.now() + state.clockOffset;
+
+  function slotFraction(s) {
+    if (s.status === 'done') return 1;
+    if (s.status === 'running' && s.startedAt != null) {
+      return Math.min(0.95, Math.max(0, (nowMs() - s.startedAt) / Math.max(1, s.estimateMs || 40000)));
+    }
+    return 0;
+  }
+
+  function slotStatusText(s) {
+    if (s.status === 'running') {
+      if (s.startedAt == null) return 'Drawing...';
+      const left = Math.ceil(((s.estimateMs || 40000) - (nowMs() - s.startedAt)) / 1000);
+      if (left <= 1) return 'Drawing... almost there';
+      return left >= 90 ? `Drawing... about ${Math.ceil(left / 60)} min left` : `Drawing... about ${left}s left`;
+    }
+    if (s.status === 'done') return 'Done';
+    if (s.status === 'error') return 'Failed';
+    return 'Waiting';
+  }
+
+  function paintBar(bar, fraction, status) {
+    bar.firstElementChild.style.transform = `scaleX(${fraction})`;
+    bar.dataset.state = status;
+  }
+
+  // Cheap and safe to run every 250ms: only touches bar fills and status text.
+  function paintSlots() {
+    const slots = state.book.slots;
+    let sum = 0;
+    for (const s of slots) {
+      const f = slotFraction(s);
+      sum += f;
+      const text = slotStatusText(s);
+      const r = rows[s.id];
+      if (r) {
+        paintBar(r.bar, s.status === 'error' ? 1 : f, s.status);
+        r.bar.setAttribute('aria-valuenow', String(Math.round(f * 100)));
+        r.bar.setAttribute('aria-valuetext', `${s.label}: ${text}`);
+        r.status.textContent = text;
+        r.li.dataset.status = s.status;
+      }
+      if (isBusy(s)) {
+        if (s.id === 'reference') $('ref-busy-text').textContent = text;
+        else if (s.id === 'cast') $('cast-busy-text').textContent = text;
+        else if (cards[s.id]) cards[s.id].veilText.textContent = text;
+      }
+    }
+    if (slots.length) paintBar($('prog-bar'), sum / slots.length, anySlotBusy() ? 'running' : 'idle');
+  }
+
+  function syncTicker() {
+    const running = state.book.slots.some((s) => s.status === 'running');
+    if (running && !tickTimer) tickTimer = setInterval(() => { if (state.book) paintSlots(); }, 250);
+    if (!running && tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  }
+
+  function buildProgressRows(book) {
+    const list = $('prog-rows');
+    list.textContent = '';
+    for (const k of Object.keys(rows)) delete rows[k];
+    for (const s of book.slots) {
+      const li = el('li', 'prog-row');
+      const top = el('div', 'prog-row-top');
+      const status = el('span', 'prog-status');
+      top.append(el('span', 'prog-label', s.label), status);
+      const bar = el('span', 'bar');
+      bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', s.label);
+      bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-valuenow', '0');
+      bar.append(el('span', 'bar-fill'));
+      const fail = el('div', 'err'); fail.hidden = true;
+      const failMsg = el('p');
+      const retry = el('button', 'btn btn-ghost btn-sm', 'Try again'); retry.type = 'button';
+      retry.addEventListener('click', () => generate([s.id]));
+      fail.append(failMsg, retry);
+      li.append(top, bar, fail);
+      list.append(li);
+      rows[s.id] = { li, bar, status, fail, failMsg, retry };
+    }
+  }
+
+  function renderProgress() {
+    const slots = state.book.slots;
+    const total = slots.length;
+    const done = slots.filter((s) => s.status === 'done').length;
+    const failed = slots.filter((s) => s.status === 'error').length;
+    const busy = anySlotBusy();
+    const allDone = total > 0 && done === total;
+
+    let text = `${done} of ${total} pictures ready`;
+    if (allDone) text = `All ${total} pictures ready`;
+    else if (failed && !busy) text = `${done} of ${total} pictures ready, ${failed} failed`;
+    $('prog-count').textContent = text;
+    $('prog-panel').dataset.state = allDone ? 'done' : busy ? 'busy' : failed ? 'error' : 'idle';
+    const bar = $('prog-bar');
+    bar.setAttribute('aria-valuemax', String(total));
+    bar.setAttribute('aria-valuenow', String(done));
+    bar.setAttribute('aria-valuetext', text);
+
+    // open while there is something to watch or fix; fold up once everything is done
+    const attention = busy || failed > 0;
+    if (attention !== state.prevAttention) { $('prog').open = attention; state.prevAttention = attention; }
+
+    for (const s of slots) {
+      const r = rows[s.id];
+      if (!r) continue;
+      const failedHere = s.status === 'error';
+      r.fail.hidden = !failedHere;
+      r.failMsg.textContent = failedHere ? (s.error || 'This picture could not be drawn.') : '';
+      r.retry.disabled = state.working;
+    }
+    paintSlots();
+  }
+
+  // ---------- pictures ----------
+  function errFor(id) {
+    const s = slotOf(id);
+    return state.pageErr[id] || (s?.status === 'error' ? (s.error || 'This picture could not be drawn.') : '');
+  }
+
+  // Page text with the child's name in it (the name being typed wins over the saved one).
+  function storyLine(p) {
+    const name = ($('about-name')?.value ?? state.book?.about?.name ?? '').trim();
+    return p.text.replaceAll('{name}', name || 'Jack');
   }
 
   function buildCards() {
     const host = $('pages');
     host.textContent = '';
-    for (const p of state.book.pages) {
+    for (const k of Object.keys(cards)) delete cards[k];
+    const pages = state.story.pages;
+    for (const p of pages) {
       const card = el('article', 'page-card');
       card.setAttribute('aria-labelledby', `t-${p.id}`);
 
       const frame = el('div', 'page-frame');
       const blank = el('div', 'page-blank');
-      blank.append(el('span', 'num', `Page ${p.number}`), el('span', 'ttl', p.title), el('span', 'txt', p.text));
+      const txt = el('span', 'txt', storyLine(p));
+      blank.append(el('span', 'num', `Page ${p.number}`), el('span', 'ttl', p.title), txt);
       const img = el('img', 'page-img'); img.hidden = true;
       img.alt = `Page ${p.number}: ${p.title}. Jack in the scene, in 3D animated style.`;
-      const overlay = el('p', 'page-text', p.text);
+      const overlay = el('p', 'page-text', storyLine(p));
       overlay.dataset.zone = p.zone; overlay.dataset.tone = p.tone; overlay.hidden = true;
       const veil = el('div', 'busy-veil'); veil.hidden = true;
       const spin = el('div', 'bean-spin'); spin.setAttribute('aria-hidden', 'true');
@@ -245,19 +587,17 @@
 
       const meta = el('div', 'page-meta');
       const h3 = el('h3', 'font-display', p.title); h3.id = `t-${p.id}`;
-      meta.append(h3, el('div', 'where', `Page ${p.number} of ${state.book.pages.length}`));
+      meta.append(h3, el('div', 'where', `Page ${p.number} of ${pages.length}`));
 
       const actions = el('div', 'page-actions');
-      const make = el('button', 'btn btn-primary btn-sm', `Make page ${p.number}`); make.type = 'button';
       const redo = el('button', 'btn btn-ghost btn-sm', 'Redo page'); redo.type = 'button';
-      make.addEventListener('click', () => makePage(p.id));
-      redo.addEventListener('click', () => makePage(p.id));
-      actions.append(make, redo);
+      redo.addEventListener('click', () => generate([p.id]));
+      actions.append(redo);
 
       const err = el('div', 'err'); err.setAttribute('role', 'alert'); err.hidden = true;
       const errText = el('p');
       const errBtn = el('button', 'btn btn-ghost btn-sm', 'Try again'); errBtn.type = 'button';
-      errBtn.addEventListener('click', () => (state.pages[p.id].image && state.pages[p.id].fixText.trim().length >= 3 && state.pages[p.id].lastAction === 'fix' ? applyFix(p.id) : makePage(p.id)));
+      errBtn.addEventListener('click', () => generate([p.id]));
       err.append(errText, errBtn);
 
       const fix = el('details', 'fix'); fix.hidden = true;
@@ -274,185 +614,274 @@
       const undo = el('button', 'btn btn-ghost btn-sm', 'Undo fix'); undo.type = 'button'; undo.hidden = true;
       btns.append(apply, undo);
       row.append(count, btns);
-      body.append(ta, row);
+      const fixErr = el('div', 'err'); fixErr.setAttribute('role', 'alert'); fixErr.hidden = true;
+      fixErr.append(el('p'));
+      body.append(ta, row, fixErr);
       fix.append(sum, body);
 
-      ta.addEventListener('input', () => { state.pages[p.id].fixText = ta.value; count.textContent = `${ta.value.length}/300`; });
-      fix.addEventListener('toggle', () => { state.pages[p.id].fixOpen = fix.open; });
-      apply.addEventListener('click', () => { state.pages[p.id].lastAction = 'fix'; applyFix(p.id); });
-      make.addEventListener('click', () => { state.pages[p.id].lastAction = 'page'; });
-      redo.addEventListener('click', () => { state.pages[p.id].lastAction = 'page'; });
+      ta.addEventListener('input', () => { count.textContent = `${ta.value.length}/300`; });
+      apply.addEventListener('click', () => applyFix(p.id));
       undo.addEventListener('click', () => undoFix(p.id));
 
       card.append(frame, meta, actions, err, fix);
       host.append(card);
-      cards[p.id] = { blank, img, overlay, veil, veilText, make, redo, err, errText, errBtn, fix, ta, count, apply, undo };
+      cards[p.id] = { blank, txt, img, overlay, veil, veilText, redo, err, errText, errBtn, fix, ta, count, apply, undo, fixErr };
     }
   }
 
-  function renderCard(id) {
-    const st = state.pages[id], c = cards[id];
-    if (!st || !c) return;
-    const has = !!st.image;
-    c.img.hidden = !has; c.overlay.hidden = !has; c.blank.hidden = has;
-    if (has) { if (c.img.getAttribute('src') !== st.image) c.img.src = st.image; c.overlay.textContent = st.text; }
-    c.veil.hidden = !st.busy; c.veilText.textContent = st.label;
-    c.make.hidden = has; c.redo.hidden = !has;
-    const lock = st.busy || state.refBusy || !state.reference || anyBusy();
-    const blockedBy = state.book ? missingEarlier(id) : null;
-    c.make.disabled = lock || !!blockedBy; c.redo.disabled = lock;
-    c.make.title = blockedBy ? `Make page ${pageNumber(blockedBy)} first` : '';
-    c.make.setAttribute('aria-busy', String(st.busy));
-    c.err.hidden = !st.error; c.errText.textContent = st.error || '';
-    c.errBtn.disabled = st.busy;
-    c.fix.hidden = !has;
-    if (c.fix.open !== st.fixOpen) c.fix.open = st.fixOpen;
-    if (c.ta.value !== st.fixText) { c.ta.value = st.fixText; c.count.textContent = `${st.fixText.length}/300`; }
-    c.ta.disabled = st.busy; c.apply.disabled = st.busy;
-    c.undo.hidden = !st.prev; c.undo.disabled = st.busy;
+  function renderPictures() {
+    const ref = slotOf('reference'), cast = slotOf('cast');
+
+    const hasRef = setImg($('ref-img'), ref);
+    $('ref-empty').hidden = hasRef;
+    $('ref-busy').hidden = !isBusy(ref);
+    const refErr = errFor('reference');
+    showErr($('ref-err'), refErr);
+
+    const hasCast = setImg($('cast-img'), cast);
+    $('cast-empty').hidden = hasCast;
+    $('cast-busy').hidden = !isBusy(cast);
+    showErr($('cast-err'), errFor('cast'));
+
+    for (const p of state.story.pages) {
+      const s = slotOf(p.id), c = cards[p.id];
+      if (!s || !c) continue;
+      const has = s.status === 'done' && !!s.imageUrl;
+      c.img.hidden = !has; c.overlay.hidden = !has; c.blank.hidden = has;
+      c.overlay.textContent = c.txt.textContent = storyLine(p);
+      if (has && c.img.getAttribute('src') !== s.imageUrl) c.img.src = s.imageUrl;
+      c.veil.hidden = !isBusy(s);
+      showErr(c.err, errFor(p.id));
+      c.redo.textContent = has ? 'Redo page' : 'Draw this page';
+      c.fix.hidden = !has;
+      c.undo.hidden = !s.canUndo;
+      showErr(c.fixErr, state.pageErr[`fix:${p.id}`] || '');
+    }
+    renderLocks();
   }
 
-  function renderStep3Controls() {
-    const ready = !!state.reference;
-    $('step-story').dataset.locked = String(!ready);
-    $('make-all').disabled = !ready || anyBusy();
-    const allDone = state.book && state.book.pages.every((p) => state.pages[p.id]?.image);
-    $('make-all').hidden = !!allDone;
+  function renderLocks() {
+    const anyBusy = anySlotBusy();
+    $('ref-retry').disabled = state.working || anyBusy;
+    $('ref-err-retry').disabled = state.working;
+    $('cast-err-retry').disabled = state.working;
+    for (const p of state.story.pages) {
+      const c = cards[p.id];
+      if (!c) continue;
+      const locked = pageLocked(p.id);
+      c.redo.disabled = locked;
+      c.errBtn.disabled = locked;
+      c.ta.disabled = locked;
+      c.apply.disabled = locked;
+      c.undo.disabled = locked;
+      c.redo.setAttribute('aria-busy', String(isBusy(slotOf(p.id))));
+    }
   }
 
-  function renderRef() {
-    const hasPhoto = !!state.photo;
-    $('step-ref').dataset.locked = String(!hasPhoto);
-    const has = !!state.reference;
-    $('ref-img').hidden = !has;
-    if (has && $('ref-img').getAttribute('src') !== state.reference) $('ref-img').src = state.reference;
-    $('ref-empty').hidden = has;
-    $('ref-busy').hidden = !state.refBusy;
-    $('ref-btn').hidden = has;
-    $('ref-btn').disabled = !hasPhoto || anyBusy();
-    $('ref-retry').hidden = !has;
-    $('ref-retry').disabled = anyBusy();
-    $('ref-note').hidden = !has;
-    const e = $('ref-err');
-    e.hidden = !state.refError;
-    e.querySelector('p').textContent = state.refError;
-    $('ref-err-retry').disabled = anyBusy();
+  // ---------- actions ----------
+  // One place for every write: shows the server's message near the control, then applies the returned book.
+  async function mutate(method, path, body, errKey) {
+    if (state.working || !state.book) return false;
+    const id = state.bookId;
+    state.working = true; state.rev++;
+    delete state.pageErr[errKey];
+    renderPictures(); renderProgress();
+    try {
+      const res = await api(method, path, body);
+      if (id !== state.bookId) return false;
+      if (res?.book) applyBook(res.book);
+      return true;
+    } catch (e) {
+      if (id === state.bookId && e.status !== 401) state.pageErr[errKey] = e.message;
+      return false;
+    } finally {
+      state.working = false;
+      if (id === state.bookId && state.book) { state.rev++; renderPictures(); renderProgress(); }
+    }
   }
 
-  function aboutValues() {
-    const v = {};
-    for (const f of state.book?.about || []) v[f.id] = ($(`about-${f.id}`)?.value || '').trim();
-    return v;
+  const bookPath = (tail = '') => `/api/books/${encodeURIComponent(state.bookId)}${tail}`;
+  const generate = (slots) => mutate('POST', bookPath('/generate'), { slots }, slots[0]);
+
+  function redoReference() {
+    if (!confirm("Try a different look for Jack? This also redraws the cast sheet and every page, so the whole book stays consistent.")) return;
+    generate(['reference']);
   }
 
-  function renderDownload() {
-    const allPages = state.book && state.book.pages.every((p) => state.pages[p.id]?.image);
-    const name = (aboutValues().name || '').length > 0;
-    const missing = [];
-    if (!allPages) missing.push('make all 3 pages');
-    if (!name) missing.push("add your child's name");
-    $('pdf-btn').disabled = !(allPages && name) || state.pdfBusy || anyBusy();
-    $('pdf-btn').textContent = state.pdfBusy ? 'Building your PDF...' : 'Download the book (PDF)';
-    $('need').textContent = missing.length ? `To download: ${missing.join(' and ')}.` : 'Ready when you are.';
+  async function applyFix(pageId) {
+    const c = cards[pageId];
+    const instruction = c.ta.value.trim();
+    if (instruction.length < 3) {
+      state.pageErr[`fix:${pageId}`] = 'Say what to change on this page.';
+      renderPictures();
+      return;
+    }
+    const ok = await mutate('POST', bookPath('/fix'), { pageId, instruction: instruction.slice(0, 300) }, `fix:${pageId}`);
+    if (ok) { c.ta.value = ''; c.count.textContent = '0/300'; say('Applying your fix.'); }
   }
 
-  function renderAll() {
-    renderRef();
-    for (const id of Object.keys(cards)) renderCard(id);
-    renderStep3Controls();
-    renderDownload();
+  async function undoFix(pageId) {
+    const ok = await mutate('POST', bookPath('/undo'), { pageId }, `fix:${pageId}`);
+    if (ok) say(`Page restored to the version before the fix.`);
   }
 
-  // ---------- about form ----------
-  function buildAbout() {
+  async function deleteBook() {
+    if (!state.book || state.working) return;
+    if (!confirm('Delete this book? The photo and all of its pictures are removed for good.')) return;
+    const id = state.bookId;
+    state.working = true;
+    try {
+      await api('DELETE', bookPath());
+      state.working = false;
+      navigate('/');
+    } catch (e) {
+      state.working = false;
+      if (id === state.bookId && e.status !== 401) showErr($('book-err'), e.message);
+    }
+  }
+
+  // ---------- about me (autosave) ----------
+  function buildAbout(values) {
     const form = $('about-form');
     form.textContent = '';
-    for (const f of state.book.about) {
+    for (const f of state.story.about) {
       const wrap = el('div', 'field');
       const label = el('label'); label.htmlFor = `about-${f.id}`;
       label.textContent = f.label;
       if (f.required) { const r = el('span', 'req', ' *'); r.setAttribute('aria-hidden', 'true'); label.append(r); }
       const multi = f.id === 'about' || f.id === 'favorites' || f.max > 80;
       const input = multi ? el('textarea') : el('input');
-      if (!multi) { input.type = f.id === 'age' ? 'text' : 'text'; }
+      if (!multi) input.type = 'text';
       if (multi) input.rows = f.id === 'about' ? 4 : 3;
       input.id = `about-${f.id}`; input.name = f.id; input.maxLength = f.max;
+      input.value = values?.[f.id] || '';
       if (f.required) input.required = true;
       if (f.id === 'name') input.autocomplete = 'off';
-      const count = el('span', 'counter', `0/${f.max}`); count.id = `count-${f.id}`;
+      const count = el('span', 'counter', `${input.value.length}/${f.max}`); count.id = `count-${f.id}`;
       input.setAttribute('aria-describedby', count.id);
-      input.addEventListener('input', () => { count.textContent = `${input.value.length}/${f.max}`; renderDownload(); });
+      input.addEventListener('input', () => {
+        count.textContent = `${input.value.length}/${f.max}`;
+        state.about.dirty = true;
+        setSaveStatus('');
+        renderDownload();
+        if (f.id === 'name') renderPictures();
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveAbout, SAVE_DEBOUNCE_MS);
+      });
       wrap.append(label, input, count);
       form.append(wrap);
     }
     form.addEventListener('submit', (e) => e.preventDefault());
   }
 
-  // ---------- pdf ----------
-  async function downloadPdf() {
-    if (state.pdfBusy) return;
-    const err = $('pdf-err');
-    err.hidden = true;
-    state.pdfBusy = true; renderDownload();
-    say('Building your PDF.');
+  function aboutValues() {
+    const v = {};
+    for (const f of state.story?.about || []) v[f.id] = ($(`about-${f.id}`)?.value || '').trim();
+    return v;
+  }
+
+  function setSaveStatus(kind, msg) {
+    const s = $('save-status');
+    s.textContent = kind === 'saved' ? 'Saved' : kind === 'saving' ? 'Saving...' : kind === 'error' ? `Not saved. ${msg}` : '';
+    s.dataset.show = String(!!kind);
+    s.dataset.kind = kind || '';
+    $('save-retry').hidden = kind !== 'error';
+  }
+
+  async function saveAbout() {
+    clearTimeout(saveTimer);
+    const a = state.about, id = state.bookId;
+    if (!id || !a.dirty || a.saving) return;
+    const values = aboutValues();
+    a.dirty = false; a.saving = true;
+    setSaveStatus('saving'); renderDownload();
+    let failed = false;
     try {
-      const res = await api('/api/book/pdf', {
-        reference: state.reference,
-        pages: state.book.pages.map((p) => ({ pageId: p.id, image: state.pages[p.id].image })),
-        about: aboutValues(),
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'JackAndTheBeanstalk.pdf';
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      say('Your book was downloaded.');
+      const { book } = await api('PATCH', bookPath(), { about: values });
+      if (id === state.bookId) { setSaveStatus(a.dirty ? '' : 'saved'); applyBook(book); }
     } catch (e) {
-      err.querySelector('p').textContent = e.message;
-      err.hidden = false;
-      say('The PDF could not be built. ' + e.message);
+      failed = true;
+      a.dirty = true;
+      if (id === state.bookId && e.status !== 401) setSaveStatus('error', e.message);
     } finally {
-      state.pdfBusy = false; renderDownload();
+      a.saving = false;
+      if (id === state.bookId) {
+        renderDownload();
+        if (a.dirty && !failed) saveAbout(); // the child kept typing during the save
+      }
     }
+  }
+
+  // ---------- download ----------
+  function renderDownload() {
+    const pagesDone = state.story.pages.every((p) => slotOf(p.id)?.status === 'done');
+    const hasName = (($('about-name')?.value) || '').trim().length > 0;
+    const pending = state.about.dirty || state.about.saving;
+    const ready = pagesDone && hasName && !pending;
+    const link = $('pdf-btn');
+    if (ready) { link.href = bookPath('/pdf'); link.removeAttribute('aria-disabled'); }
+    else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); }
+
+    const missing = [];
+    if (!pagesDone) missing.push(`wait for all ${state.story.pages.length} pages to finish`);
+    if (!hasName) missing.push("add your child's name");
+    let note = 'Ready when you are.';
+    if (missing.length) note = `To download: ${missing.join(' and ')}.`;
+    else if (pending) note = 'Saving your changes...';
+    $('need').textContent = note;
+  }
+
+  // ---------- render a whole book ----------
+  function buildBookView(book) {
+    built = book.id;
+    state.about = { dirty: false, saving: false };
+    state.pageErr = {}; state.working = false; state.prevAttention = undefined;
+    clearTimeout(saveTimer);
+    $('style-text').textContent = state.story.style;
+    buildProgressRows(book);
+    buildCards();
+    buildAbout(book.about);
+    setSaveStatus('');
+  }
+
+  function renderBook() {
+    const b = state.book;
+    const name = (b.about?.name || '').trim();
+    $('book-title').textContent = name || 'Untitled book';
+    $('book-meta').textContent = `Created ${fmtDate(b.createdAt)}`;
+    document.title = `${name || 'Untitled book'} | ${SITE}`;
+    const photo = $('book-photo');
+    if (b.photoUrl) { if (photo.getAttribute('src') !== b.photoUrl) photo.src = b.photoUrl; photo.hidden = false; }
+    else photo.hidden = true;
+    renderProgress();
+    renderPictures();
+    renderDownload();
   }
 
   // ---------- init ----------
-  function wireUpload() {
-    const drop = $('drop');
-    $('photo-input').addEventListener('change', (e) => handleFile(e.target.files[0]));
-    $('camera-input').addEventListener('change', (e) => handleFile(e.target.files[0]));
-    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('photo-input').click(); } });
-    ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('is-over'); }));
-    ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('is-over'); }));
-    drop.addEventListener('drop', (e) => handleFile(e.dataTransfer?.files?.[0]));
-    if (window.matchMedia('(pointer: coarse)').matches) {
-      $('camera-btn').hidden = false;
-      $('camera-btn').addEventListener('click', () => $('camera-input').click());
-    }
-    $('photo-clear').addEventListener('click', () => { resetAll(); showPhotoError(''); renderAll(); $('photo-input').click(); });
-  }
-
   async function init() {
     wireUpload();
-    $('ref-btn').addEventListener('click', makeReference);
-    $('ref-retry').addEventListener('click', makeReference);
-    $('ref-err-retry').addEventListener('click', makeReference);
-    $('make-all').addEventListener('click', () => { makeAll(); });
-    $('pdf-btn').addEventListener('click', downloadPdf);
+    onNav($('brand'));
+    onNav($('back-link'));
+    $('ref-retry').addEventListener('click', redoReference);
+    $('ref-err-retry').addEventListener('click', () => generate(['reference']));
+    $('cast-err-retry').addEventListener('click', () => generate(['cast']));
+    $('save-retry').addEventListener('click', saveAbout);
+    $('delete-btn').addEventListener('click', deleteBook);
+    $('pdf-btn').addEventListener('click', (e) => { if ($('pdf-btn').getAttribute('aria-disabled') === 'true') e.preventDefault(); });
+    window.addEventListener('popstate', route);
+    window.addEventListener('pagehide', () => { if (state.bookId && state.about.dirty) saveAbout(); });
+
+    let meError = '';
     try {
-      const res = await fetch('/api/book');
-      if (!res.ok) throw new Error();
-      state.book = await res.json();
-    } catch {
-      $('style-text').textContent = 'The story could not be loaded. Refresh the page to try again.';
-      return;
+      state.me = await api('GET', '/api/me');
+    } catch (e) {
+      state.me = { user: null, signInUrl: '/auth/google', devLogin: false };
+      meError = `Could not check your sign-in. ${e.message}`;
     }
-    $('style-text').textContent = state.book.style;
-    resetPages();
-    buildCards();
-    buildAbout();
-    renderAll();
+    renderAccount();
+    route();
+    showErr($('global-err'), meError);
   }
 
   init();
