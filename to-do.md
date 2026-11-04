@@ -6,10 +6,10 @@ What in this build still needs work, most important first. Evidence is in [TESTI
 
 Ratings out of 5: humans gave likeness 3.8, story 3.8 and professional 3.4. Plain AI calls rated "professional" 4.9, so humans were much harsher on the look.
 
-- **The pages don't connect, and the story stops early.** This is the top human complaint (6 of 10). Four said "too short". Two were more specific: "add a page explaining why Mum throws out the beans" and "context is missing between pages". Fix: say why (the cow was all they had, Jack traded her for five beans) and add the beanstalk at dawn as the ending beat, as a new entry in `PAGES` with one more parallel picture.
-- **"Is his name Jack or Theo?"** (1 human, 2 AI). Use the child's name in the story text, with Jack only in the title.
-- **"Milky-White" isn't clear** (1 human). Say "their cow, Milky-White" the first time.
-- **The beans look like candy** (1 human, 1 AI). Draw speckled, earthy beans with a faint glow instead of five bright colours.
+- ~~**The pages don't connect, and the story stops early.**~~ Done: the text now explains why, and page 4 is the beanstalk. This is the top human complaint (6 of 10). Four said "too short". Two were more specific: "add a page explaining why Mum throws out the beans" and "context is missing between pages". Fix: say why (the cow was all they had, Jack traded her for five beans) and add the beanstalk at dawn as the ending beat, as a new entry in `PAGES` with one more parallel picture.
+- ~~**"Is his name Jack or Theo?"**~~ Done: the text uses the child's name and never says he or she. (1 human, 2 AI). Use the child's name in the story text, with Jack only in the title.
+- ~~**"Milky-White" isn't clear**~~ Done. (1 human). Say "their cow, Milky-White" the first time.
+- ~~**The beans look like candy**~~ Done: speckled beans. (1 human, 1 AI). Draw speckled, earthy beans with a faint glow instead of five bright colours.
 - **"Looks AI"** (1 human, 3 AI). A softer, painterly `BOOK_STYLE` is worth an A/B test.
 - **Print quality** (AI only; no human checked it). The page art is 1024×1536, which is 171 dpi at 6×9 in (a printer wants 250–300), and there's no bleed. Fixes: render at `IMAGE_QUALITY=medium` or upscale for the PDF only, and add 0.125 in bleed.
 - **Text looks "slapped on"** (AI only). Design a proper text block per page instead of a gradient band.

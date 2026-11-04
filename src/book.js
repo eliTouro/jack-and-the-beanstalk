@@ -42,6 +42,12 @@ const OLD_MAN =
 
 const COW = 'Milky-White, a gentle, thin white cow with a few pale brown patches and a small brass bell on a rope collar';
 
+// Magic, but not candy: one bright colour per bean read as jelly beans to reviewers.
+const BEANS =
+  'five large speckled beans, mottled cream and deep plum-brown, with a faint golden shimmer';
+
+// Story text: {name} becomes the child's name from the About Me page ("Jack" until
+// it's filled in). The text never uses he/she for the child, so it fits any child.
 // Text zones tell the PDF layer where to print and in which tone:
 //   zone: 'top' | 'bottom'   tone: 'light' (white text, dark scrim) | 'dark' (dark text, pale scrim)
 export const PAGES = [
@@ -49,7 +55,7 @@ export const PAGES = [
     id: 'cupboard',
     number: 1,
     title: 'The empty cupboard',
-    text: 'Jack and his mother had nothing left to sell but Milky-White.',
+    text: 'The cupboard was bare. “{name},” said Mother, “take our cow, Milky-White, to market and sell her for a good price.”',
     zone: 'bottom',
     tone: 'light',
     scene:
@@ -65,14 +71,14 @@ export const PAGES = [
     id: 'trade',
     number: 2,
     title: 'The trade',
-    text: '“Five magic beans,” said the old man. “For one cow.”',
+    text: 'On the road, an old man held out five speckled beans. “Magic beans, for your cow?” And {name} said yes.',
     zone: 'top',
     tone: 'dark',
     scene:
       `A winding dirt road to market between green fields and hedgerows. Jack holds ${COW} by her rope. ` +
-      `Facing Jack stands ${OLD_MAN}. The old man holds out his open palm with exactly FIVE beans in it, no more and no fewer, each a different bright color: one red, one blue, one yellow, one purple and one green, large enough to count.`,
+      `Facing Jack stands ${OLD_MAN}. The old man holds out his open palm with exactly ${BEANS} in it, no more and no fewer, large enough to count.`,
     composition:
-      'Jack is in three-quarter view, face clearly visible, looking at the beans with wonder. Jack wears exactly the same clothes as on page 1. The old man is fully inside the picture, his whole face visible. All characters stand in the lower two-thirds of the picture.',
+      'Jack is in three-quarter view, face clearly visible, looking at the beans with wonder. Jack wears exactly the same clothes as on page 1. The old man is fully inside the picture, his whole face visible. All characters stand in the lower two-thirds of the picture: every head, including the top of the old man’s hat, stays below the top third.',
     textSpace:
       'Leave the top third of the picture as open, plain, pale sky with only a few soft clouds: the story text will be printed there.',
   },
@@ -80,20 +86,39 @@ export const PAGES = [
     id: 'window',
     number: 3,
     title: 'Out the window',
-    text: '“Beans!” she cried. And out the window they went.',
+    text: '“You sold our only cow for five beans?” cried Mother. “Now we have nothing!” And out the window the beans flew.',
     zone: 'bottom',
     tone: 'light',
     scene:
       `The outside of the cottage at dusk. ${MOTHER} She leans out of a lit cottage window with a cross, disappointed frown, tossing the beans out; ` +
-      'the same five beans from page 2 (one red, one blue, one yellow, one purple, one green) scatter through the air and fall into the garden below. Jack stands in the open cottage doorway, watching, face lit by warm light from inside.',
+      `the same ${BEANS} from page 2 scatter through the air and fall into the garden below. Jack stands in the open cottage doorway, watching, face lit by warm light from inside.`,
     composition:
       "A darker palette than the earlier pages: deep blue and violet dusk sky, warm orange window and door light. Jack's face is visible, in three-quarter or front view. The doorway, the window and the characters are in the upper two-thirds of the picture.",
     textSpace:
       'The bottom third of the picture is only dark, quiet grass: no faces, feet or important objects there. The story text will be printed there.',
   },
-  // Page 4 (the beanstalk at dawn) and the earlier "plant" / "climb" scenes slot in
-  // here as more entries with the same shape; nothing else needs to change.
+  {
+    id: 'beanstalk',
+    number: 4,
+    title: 'The beanstalk',
+    text: '{name} went to bed hungry. But in the morning, where the beans had landed, a beanstalk had grown up and up, right into the clouds.',
+    zone: 'bottom',
+    tone: 'light',
+    scene:
+      'The cottage garden at sunrise, the morning after. Where the beans fell, an enormous beanstalk has grown overnight: a thick, twisting green stem with huge leaves, ' +
+      'rising past the cottage roof and out of the top of the picture into pink and gold morning clouds. ' +
+      'Jack stands at the foot of the beanstalk, head tilted back, looking up at it in amazement, one hand resting on the stalk. The cottage, with the window from page 3, is beside the beanstalk.',
+    composition:
+      "Low camera angle looking up, so the beanstalk towers over everything. Jack's face is clearly visible in three-quarter view, lit by golden sunrise light. Jack and the foot of the beanstalk are in the middle third of the picture.",
+    textSpace:
+      'The bottom third of the picture is only plain garden grass and soil in soft shadow: no faces, feet or important objects there. The story text will be printed there.',
+  },
 ];
+
+// The page text for one book.
+export function pageText(page, name) {
+  return page.text.replaceAll('{name}', (name || '').trim() || 'Jack');
+}
 
 export const PAGE_BY_ID = Object.fromEntries(PAGES.map((p) => [p.id, p]));
 
@@ -127,7 +152,7 @@ export function castPrompt() {
     'Draw these four side by side, each full body and fully inside the picture, evenly spaced on a plain soft cream background:',
     `1. ${MOTHER}`,
     `2. ${COW}`,
-    `3. ${OLD_MAN[0].toUpperCase()}${OLD_MAN.slice(1)}, holding five beans in his open palm: one red, one blue, one yellow, one purple and one green.`,
+    `3. ${OLD_MAN[0].toUpperCase()}${OLD_MAN.slice(1)}, holding ${BEANS} in his open palm.`,
     '4. Their small, poor thatched cottage with a wooden door and one window with a flower box.',
     'Each in a neutral standing pose, facing three-quarters toward the viewer, evenly lit.',
     BOOK_STYLE,

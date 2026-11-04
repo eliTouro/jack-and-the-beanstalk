@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { generateImage, HttpError, MODEL, isMock } from './src/image.js';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, STYLES, EXAGGERATION, PALETTES, LINES, DEFAULT_SETTINGS } from './src/prompts.js';
-import { PAGES, ABOUT_FIELDS, BOOK_STYLE, SLOTS, SLOT_BY_ID, normalizeAbout } from './src/book.js';
+import { PAGES, ABOUT_FIELDS, BOOK_STYLE, SLOTS, SLOT_BY_ID, normalizeAbout, pageText } from './src/book.js';
 import { buildBookPdf } from './src/pdf.js';
 import { router as authRouter, requireUser } from './src/auth.js';
 import * as store from './src/store.js';
@@ -125,7 +125,7 @@ app.post('/api/scene', async (req, res, next) => {
 });
 
 // --- The picture book (signed-in users; every book is saved) -----------------------
-// POST /api/books stores the photo and starts drawing all 5 pictures on the server.
+// POST /api/books stores the photo and starts drawing every picture on the server.
 // The browser polls GET /api/books/:id for per-picture progress.
 
 app.get('/api/book', (_req, res) => {
@@ -267,7 +267,7 @@ app.get('/api/books/:id/pdf', requireUser, async (req, res) => {
   if (!about.name) throw new HttpError(400, "Add the child's name for the About Me page.");
   const b64 = (img) => img && { data: img.buffer.toString('base64'), mimeType: img.mimeType };
   const reference = b64(await store.getImage(row.id, 'reference'));
-  const pages = await Promise.all(PAGES.map(async (p) => ({ ...p, image: b64(await store.getImage(row.id, p.id)) })));
+  const pages = await Promise.all(PAGES.map(async (p) => ({ ...p, text: pageText(p, about.name), image: b64(await store.getImage(row.id, p.id)) })));
   const missing = pages.find((p) => !p.image);
   if (missing) throw new HttpError(400, `Page ${missing.number} hasn't been made yet.`);
   if (!reference) throw new HttpError(400, "Your Jack hasn't been made yet.");

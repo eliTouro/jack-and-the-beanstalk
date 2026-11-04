@@ -105,5 +105,32 @@ Pages 1 and 2 had passed with the photo attached, so the photo isn't always bloc
   - After a reload, the book and its name were still there under My books.
   - The layout was checked at desktop and 375 px phone width; no console errors.
 - **Not tested yet:**
-  - real Google sign-in and the Neon database (waiting on the OAuth client and `DATABASE_URL`)
+  - real Google sign-in end to end (the client ID is accepted by Google; signing in needs a real account on a registered address)
   - the deployed version
+
+### Neon database (real, mock images)
+
+With the real `DATABASE_URL` in `.env`, I signed in with dev login, made a book with mock images, set a name, and restarted the server. After the restart, the same book was listed with all its pictures and name, and the session cookie still worked. The test book was then deleted.
+
+### Story rewrite after the feedback (real API, `gpt-image-2.5-flare`, low)
+
+Changes from the human and AI feedback:
+
+- The text explains why Mother throws the beans out.
+- A fourth page shows the beanstalk the next morning.
+- The child's name is in the text.
+- "their cow, Milky-White" is said the first time.
+- The beans are speckled instead of five bright colours.
+
+Test on child-1 (`TRY_TAG=f3`), reusing the earlier reference and page 1:
+
+| Picture | Time | Result |
+|---|---|---|
+| Cast sheet | 16 s | Old man holds speckled cream and plum beans |
+| Page 2, the trade | 14 s | First try: the old man's hat reached the top text zone, and the longer text ran over it. Shortened the text and added "every head, including the top of the old man's hat, stays below the top third". The redraw is clean. |
+| Page 3, the window | 13 s | Speckled beans fall from the window. Not blocked. |
+| Page 4, the beanstalk | 12 s | Jack at the foot of a huge beanstalk at sunrise, with the cottage beside it |
+
+![child-1 after the rewrite](test-results/thumbs/hw3-story-child-1.jpg)
+
+In the browser (mock images): typing a name updates all four page texts at once, the progress panel shows "All 6 pictures ready", and the PDF downloads.

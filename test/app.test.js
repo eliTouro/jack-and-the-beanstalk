@@ -73,7 +73,7 @@ test('healthz reports the key is missing, never its value', async () => {
 });
 
 // --- Picture book: prompts ----------------------------------------------------------
-import { PAGES, BOOK_STYLE, SLOTS, pagePrompt, referencePrompt, castPrompt, fixPrompt, normalizeAbout } from '../src/book.js';
+import { PAGES, BOOK_STYLE, SLOTS, pagePrompt, referencePrompt, castPrompt, fixPrompt, normalizeAbout, pageText } from '../src/book.js';
 import { expandSlots } from '../src/jobs.js';
 
 test('every book call uses the one style string, word for word', () => {
@@ -108,9 +108,15 @@ test('About Me input is trimmed and capped', () => {
   assert.equal('extra' in a, false);
 });
 
-test('GET /api/book lists pages 1-3 with text zones and the 5 pictures', async () => {
+test('page text uses the child\'s name, and Jack until there is one', () => {
+  assert.match(pageText(PAGES[0], 'Theo'), /Theo/);
+  assert.match(pageText(PAGES[0], '  '), /Jack/);
+  for (const p of PAGES) assert.doesNotMatch(pageText(p, 'Ari'), /\{name\}/, p.id);
+});
+
+test('GET /api/book lists pages 1-4 with text zones and every picture', async () => {
   const body = await (await fetch(base + '/api/book')).json();
-  assert.deepEqual(body.pages.map((p) => p.number), [1, 2, 3]);
+  assert.deepEqual(body.pages.map((p) => p.number), [1, 2, 3, 4]);
   assert.ok(body.pages.every((p) => ['top', 'bottom'].includes(p.zone)));
   assert.equal(body.style, BOOK_STYLE);
   assert.deepEqual(body.slots.map((s) => s.id), SLOTS.map((s) => s.id));
@@ -158,7 +164,7 @@ test('a new book draws Jack and the cast together, then all pages together', asy
     const { book } = await res.json();
     bookId = book.id;
     assert.equal(book.busy, true);
-    assert.equal(book.slots.length, 5);
+    assert.equal(book.slots.length, SLOTS.length);
 
     const done = await settle(bookId);
     const at = Object.fromEntries(done.slots.map((s) => [s.id, s]));
@@ -176,7 +182,7 @@ test('a new book draws Jack and the cast together, then all pages together', asy
 test('the book is listed and its pictures are served to the owner only', async () => {
   const { books } = await (await call('GET', '/api/books')).json();
   assert.equal(books[0].id, bookId);
-  assert.equal(books[0].done, 5);
+  assert.equal(books[0].done, SLOTS.length);
   const img = await call('GET', books[0].thumbUrl);
   assert.equal(img.status, 200);
   assert.equal((await fetch(base + books[0].thumbUrl)).status, 401);

@@ -3,7 +3,7 @@
 //
 //   node --env-file-if-exists=.env scripts/book.mjs ref    test-faces/child-1.jpg
 //   node --env-file-if-exists=.env scripts/book.mjs cast   test-faces/child-1.jpg
-//   node --env-file-if-exists=.env scripts/book.mjs page   test-faces/child-1.jpg cupboard|trade|window
+//   node --env-file-if-exists=.env scripts/book.mjs page   test-faces/child-1.jpg cupboard|trade|window|beanstalk
 //   node --env-file-if-exists=.env scripts/book.mjs fix    test-faces/child-1.jpg <pageId> "make the beans bigger"
 //   node scripts/book.mjs pdf test-faces/child-1.jpg out.pdf "Name" "Age" "Favorite things" "More about me"   (no model call)
 //
@@ -12,7 +12,7 @@
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import { generateImage, MODEL } from '../src/image.js';
-import { PAGE_BY_ID, PAGES, referencePrompt, castPrompt, pagePrompt, fixPrompt, normalizeAbout } from '../src/book.js';
+import { PAGE_BY_ID, PAGES, referencePrompt, castPrompt, pagePrompt, fixPrompt, normalizeAbout, pageText } from '../src/book.js';
 import { buildBookPdf } from '../src/pdf.js';
 
 const [mode, photoPath, ...rest] = process.argv.slice(2);
@@ -57,7 +57,7 @@ if (mode === 'ref') {
 } else if (mode === 'pdf') {
   const [out, name, age, favorites, about] = rest;
   if (!out || !name) usage();
-  const pages = await Promise.all(PAGES.map(async (p) => ({ ...p, image: await load(`${stem}-${p.id}.jpg`) })));
+  const pages = await Promise.all(PAGES.map(async (p) => ({ ...p, text: pageText(p, name), image: await load(`${stem}-${p.id}.jpg`) })));
   const pdf = await buildBookPdf({ pages, reference: await load(`${stem}-reference.jpg`), about: normalizeAbout({ name, age, favorites, about }) });
   await writeFile(out, pdf);
   console.log(`pdf -> ${out} (${(pdf.length / 1024).toFixed(0)} KB, ${PAGES.length + 1} pages)`);

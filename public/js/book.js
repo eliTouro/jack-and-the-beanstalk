@@ -1,5 +1,5 @@
 /* A storybook starring your child.
-   Sign in with Google, make a book, and the server draws all 5 pictures. This page
+   Sign in with Google, make a book, and the server draws every picture. This page
    only starts the work and polls for per-picture progress, so a book survives a closed tab.
    Views: signed out, shelf (my books), one book (?book=<id>). */
 (() => {
@@ -556,6 +556,12 @@
     return state.pageErr[id] || (s?.status === 'error' ? (s.error || 'This picture could not be drawn.') : '');
   }
 
+  // Page text with the child's name in it (the name being typed wins over the saved one).
+  function storyLine(p) {
+    const name = ($('about-name')?.value ?? state.book?.about?.name ?? '').trim();
+    return p.text.replaceAll('{name}', name || 'Jack');
+  }
+
   function buildCards() {
     const host = $('pages');
     host.textContent = '';
@@ -567,10 +573,11 @@
 
       const frame = el('div', 'page-frame');
       const blank = el('div', 'page-blank');
-      blank.append(el('span', 'num', `Page ${p.number}`), el('span', 'ttl', p.title), el('span', 'txt', p.text));
+      const txt = el('span', 'txt', storyLine(p));
+      blank.append(el('span', 'num', `Page ${p.number}`), el('span', 'ttl', p.title), txt);
       const img = el('img', 'page-img'); img.hidden = true;
       img.alt = `Page ${p.number}: ${p.title}. Jack in the scene, in 3D animated style.`;
-      const overlay = el('p', 'page-text', p.text);
+      const overlay = el('p', 'page-text', storyLine(p));
       overlay.dataset.zone = p.zone; overlay.dataset.tone = p.tone; overlay.hidden = true;
       const veil = el('div', 'busy-veil'); veil.hidden = true;
       const spin = el('div', 'bean-spin'); spin.setAttribute('aria-hidden', 'true');
@@ -618,7 +625,7 @@
 
       card.append(frame, meta, actions, err, fix);
       host.append(card);
-      cards[p.id] = { blank, img, overlay, veil, veilText, redo, err, errText, errBtn, fix, ta, count, apply, undo, fixErr };
+      cards[p.id] = { blank, txt, img, overlay, veil, veilText, redo, err, errText, errBtn, fix, ta, count, apply, undo, fixErr };
     }
   }
 
@@ -641,6 +648,7 @@
       if (!s || !c) continue;
       const has = s.status === 'done' && !!s.imageUrl;
       c.img.hidden = !has; c.overlay.hidden = !has; c.blank.hidden = has;
+      c.overlay.textContent = c.txt.textContent = storyLine(p);
       if (has && c.img.getAttribute('src') !== s.imageUrl) c.img.src = s.imageUrl;
       c.veil.hidden = !isBusy(s);
       showErr(c.err, errFor(p.id));
@@ -696,7 +704,7 @@
   const generate = (slots) => mutate('POST', bookPath('/generate'), { slots }, slots[0]);
 
   function redoReference() {
-    if (!confirm("Try a different look for Jack? This also redraws the cast sheet and all 3 pages, so the whole book stays consistent.")) return;
+    if (!confirm("Try a different look for Jack? This also redraws the cast sheet and every page, so the whole book stays consistent.")) return;
     generate(['reference']);
   }
 
@@ -756,6 +764,7 @@
         state.about.dirty = true;
         setSaveStatus('');
         renderDownload();
+        if (f.id === 'name') renderPictures();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveAbout, SAVE_DEBOUNCE_MS);
       });

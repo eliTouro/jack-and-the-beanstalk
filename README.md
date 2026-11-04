@@ -24,21 +24,23 @@ The first homework (cartoonify with settings, plus two captioned scenes) still l
 sign in with Google ──▶ cookie session (signed, 30 days)
 photo ──▶ POST /api/books ──▶ saved in Postgres, then drawn on the server:
             round 1, in parallel:  reference (Jack, from the photo)  +  cast sheet (mother, cow, old man, cottage)
-            round 2, in parallel:  page 1  +  page 2  +  page 3      (each = reference + cast sheet)
+            round 2, in parallel:  pages 1 to 4                     (each = reference + cast sheet)
           each picture is saved the moment it's ready
 browser ──▶ GET /api/books/:id every 1.5 s ──▶ per-picture status, start time and expected duration ──▶ one progress bar per picture
 page + reference + "change X" ──▶ POST /api/books/:id/fix ──▶ same page, one thing changed (old version kept for Undo)
 GET /api/books/:id/pdf ──▶ pages + reference + About Me ──▶ PDF (no model call)
 ```
 
-A book is 5 pictures in 2 parallel rounds, about 30 s in total. Before, the pages were chained one after another and took about 60 s.
+A book is 6 pictures in 2 parallel rounds, about 30 s in total. Before, the pages were chained one after another and took about 60 s.
 
 How the child stays the same child on every page:
 
 - **One reference image** per book, made from the photo. It's image 1 on every page call. Only the reference call sees the photo. When the real photo was also attached to page calls, the safety filter sometimes blocked a page (see TESTING.md).
-- **One cast sheet** per book: the mother (matching the child's skin tone and hair colour), Milky-White, the old man with the five beans, and the cottage. It's image 2 on every page call, so recurring characters match across pages even though no page waits for another.
+- **One cast sheet** per book: the mother (matching the child's skin tone and hair colour), Milky-White, the old man with the five speckled beans, and the cottage. It's image 2 on every page call, so recurring characters match across pages even though no page waits for another.
 - **One style string.** `BOOK_STYLE` in `src/book.js` is sent word for word in every call: "modern 3D animated feature film — rounded forms, large expressive eyes, soft rim light". A test checks this.
 - **Fixed descriptions** for Jack's outfit, the mother, the old man and Milky-White.
+
+**The story** is four pages: the empty cupboard, the trade, the beans out the window, and the beanstalk the next morning. The text uses the child's name from the About Me page ("Jack" until it's filled in) and never says he or she, so it fits any child. It was rewritten after the first feedback round (see to-do.md).
 
 How the text stays readable:
 
