@@ -1,16 +1,20 @@
 import express from 'express';
 import cookieSession from 'cookie-session';
+import compression from 'compression';
 import { pinoHttp } from 'pino-http';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { generateImage, HttpError, MODEL, isMock } from './src/image.js';
 import { cartoonPrompt, scenePrompt, normalizeSettings, SCENES, STYLES, EXAGGERATION, PALETTES, LINES, DEFAULT_SETTINGS } from './src/prompts.js';
-import { PAGES, ABOUT_FIELDS, BOOK_STYLE, SLOTS, SLOT_BY_ID, normalizeAbout, pageText } from './src/book.js';
-import { buildBookPdf } from './src/pdf.js';
+import { STORIES, storyOf, ABOUT_FIELDS, BOOK_STYLE, SLOTS, SLOT_BY_ID, normalizeAbout } from './src/book.js';
+import { buildAndStorePdf } from './src/bookpdf.js';
+import { MAX_ATTEMPTS } from './src/quality.js';
+import * as library from './src/library.js';
+import * as billing from './src/billing.js';
 import { router as authRouter, requireUser } from './src/auth.js';
 import * as store from './src/store.js';
 import * as jobs from './src/jobs.js';
-import { db } from './src/db.js';
+import { db, query } from './src/db.js';
 import { log } from './src/log.js';
 
 const app = express();
@@ -45,7 +49,12 @@ app.use(cookieSession({
   secure: process.env.NODE_ENV === 'production',
 }));
 app.use(express.json({ limit: '12mb' }));
-app.use(express.static(fileURLToPath(new URL('./public', import.meta.url))));
+app.use(compression());
+// Pages always revalidate (a 304 is quick); scripts, styles and pictures are reused for
+// five minutes and refreshed in the background after that.
+app.use(express.static(fileURLToPath(new URL('./public', import.meta.url)), {
+  setHeaders: (res, path) => res.set('Cache-Control', path.endsWith('.html') ? 'no-cache' : 'public, max-age=300, stale-while-revalidate=86400'),
+}));
 app.use(authRouter);
 
 // --- Cost guard: a small per-IP budget of image generations per hour. ---------
@@ -79,6 +88,7 @@ app.get('/healthz', (_req, res) => res.json({
   keyConfigured: Boolean(process.env.OPENAI_API_KEY),
   googleConfigured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
   database: process.env.DATABASE_URL ? 'postgres' : 'memory',
+  payments: billing.stripeMode(),
 }));
 
 // The menus the UI renders, so the server stays the single source of truth.
@@ -125,23 +135,95 @@ app.post('/api/scene', async (req, res, next) => {
 });
 
 // --- The picture book (signed-in users; every book is saved) -----------------------
-// POST /api/books stores the photo and starts drawing every picture on the server.
-// The browser polls GET /api/books/:id for per-picture progress.
+// POST /api/books takes $0.99, stores the photo and starts drawing every picture on the
+// server. The browser polls GET /api/books/:id for per-picture progress.
 
-app.get('/api/book', (_req, res) => {
-  res.json({
+const MAX_BOOKS = Number(process.env.MAX_BOOKS_PER_USER || 40);
+const msOf = (d) => (d ? new Date(d).getTime() : null);
+const STAGES = ['Photo saved', 'Drawing your hero', 'Drawing the pages', 'Checking and fixing', 'Book ready'];
+
+// The stories, the template text zones, the character bible and the pre-made scenes.
+let storiesCache = null;
+async function storiesJson() {
+  if (storiesCache) return storiesCache;
+  const { chars, scenes } = await library.libraryIndex();
+  const v = (hash) => (hash || '').slice(0, 10);
+  storiesCache = {
     style: BOOK_STYLE,
-    pages: PAGES.map(({ id, number, title, text, zone, tone }) => ({ id, number, title, text, zone, tone })),
+    priceCents: billing.PRICE_CENTS,
+    maxAttempts: MAX_ATTEMPTS,
     about: ABOUT_FIELDS,
     slots: SLOTS,
-  });
+    stories: Object.values(STORIES).map((st) => {
+      const sc = Object.fromEntries(scenes.filter((r) => r.story === st.id).map((r) => [r.page, r]));
+      return {
+        id: st.id, title: st.title, heroRole: st.heroRole, heroOutfit: st.heroOutfit,
+        scenesReady: Object.keys(sc).length,
+        coverUrl: sc.p07 ? `/api/library/${st.id}/scenes/p07?size=thumb&v=${v(sc.p07.hash)}` : null,
+        pages: st.pages.map((p) => ({
+          id: p.id, number: p.number, title: p.title, text: p.text, zone: p.zone, shot: p.shot, hero: p.hero,
+          sceneUrl: sc[p.id] ? `/api/library/${st.id}/scenes/${p.id}?size=thumb&v=${v(sc[p.id].hash)}` : null,
+          sceneAttempts: sc[p.id]?.meta?.attempts ?? null,
+        })),
+        characters: chars.filter((c) => c.story === st.id).map((c) => ({
+          id: c.id, name: c.name, description: c.description, attempts: c.meta?.attempts ?? null,
+          imageUrl: `/api/library/${st.id}/characters/${c.id}?size=thumb&v=${v(c.hash)}`,
+        })),
+      };
+    }),
+  };
+  return storiesCache;
+}
+
+app.get('/api/stories', async (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=60');
+  res.json(await storiesJson());
 });
 
-const MAX_BOOKS = Number(process.env.MAX_BOOKS_PER_USER || 30);
-const msOf = (d) => (d ? new Date(d).getTime() : null);
+// Bible pictures and template scenes are the same for everyone, so they are public and cached hard.
+app.get('/api/library/:story/:group/:id', async (req, res) => {
+  const { story, group, id } = req.params;
+  if (!Object.hasOwn(STORIES, story)) throw new HttpError(404, 'Unknown story.');
+  const item = group === 'scenes' ? await library.getScene(story, id) : group === 'characters' ? await library.getCharacter(story, id) : null;
+  if (!item) throw new HttpError(404, 'No picture here.');
+  const thumb = req.query.size === 'thumb' && item.thumb;
+  res.set({ 'Content-Type': thumb ? 'image/webp' : item.mimeType, 'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=300' });
+  res.send(thumb ? item.thumb : item.buffer);
+});
+
+// Names the stage a book is in, for the progress bar.
+function stageOf(slots, { name, story, pdfReady }) {
+  const ref = slots[0];
+  const pages = slots.slice(1);
+  const busy = (s) => s.status === 'queued' || s.status === 'running';
+  const done = pages.filter((s) => s.status === 'done').length;
+  const who = name || 'your child';
+  if (busy(ref)) {
+    const label = ref.phase === 'checking' ? `Checking that the drawing looks like ${who}`
+      : ref.attempt > 1 ? `Drawing ${who} as ${story.heroRole} again (try ${ref.attempt} of ${MAX_ATTEMPTS})`
+      : `Drawing ${who} as ${story.heroRole}`;
+    return { step: 1, label };
+  }
+  const working = pages.filter(busy);
+  if (working.length) {
+    const retrying = working.filter((s) => s.attempt > 1).length;
+    const checking = working.filter((s) => s.phase === 'checking').length;
+    if (retrying) return { step: 3, label: `Redrawing ${retrying} ${retrying === 1 ? 'page' : 'pages'} that failed the check, ${done} of ${pages.length} ready` };
+    if (checking === working.length) return { step: 3, label: `Checking the last ${checking === 1 ? 'page' : `${checking} pages`}, ${done} of ${pages.length} ready` };
+    return { step: 2, label: `Drawing the pages, ${done} of ${pages.length} ready` };
+  }
+  if (pdfReady) return { step: 4, label: 'Book ready: the PDF can be downloaded' };
+  const failed = slots.filter((s) => s.status === 'error').length;
+  if (failed) return { step: 3, label: `${failed} ${failed === 1 ? 'picture' : 'pictures'} could not be drawn` };
+  return { step: 3, label: done === pages.length ? "Add the child's name to finish the PDF" : 'Some pages are not drawn yet' };
+}
 
 async function bookJson(row) {
-  const [rows, est] = await Promise.all([store.getSlots(row.id), store.estimateMs()]);
+  const [rows, est, cost, [made]] = await Promise.all([
+    store.getSlots(row.id), store.estimateMs(), store.bookCost(row.id),
+    query(`select ms from events where book_id = $1 and kind = 'book.done' order by id desc limit 1`, [row.id]),
+  ]);
+  const story = storyOf(row.story);
   const bySlot = Object.fromEntries(rows.map((r) => [r.slot, r]));
   const slots = await Promise.all(SLOTS.map(async (def) => {
     const r = bySlot[def.id] || { status: 'empty' };
@@ -152,22 +234,33 @@ async function bookJson(row) {
       status = r.has_image ? 'done' : 'error';
       await store.markFailed(row.id, def.id, error);
     }
+    const url = (size) => (r.has_image ? `/api/books/${row.id}/images/${def.id}?${size ? `size=${size}&` : ''}v=${r.version}` : null);
     return {
       id: def.id, label: def.label, kind: def.kind, status, error: error || null,
       startedAt: msOf(r.started_at), finishedAt: msOf(r.finished_at),
       estimateMs: est[def.kind] ?? est.page,
-      imageUrl: r.has_image ? `/api/books/${row.id}/images/${def.id}?v=${r.version}` : null,
+      imageUrl: url(''), thumbUrl: url('thumb'),
       canUndo: Boolean(r.can_undo),
+      // The quality loop: which drawing is under way, how many were made, which was kept.
+      attempt: r.attempt || 0, phase: r.phase || null,
+      attempts: r.attempts || 0, chosen: r.chosen ?? null, maxAttempts: MAX_ATTEMPTS,
+      score: r.score ?? null, passed: r.passed ?? null, history: r.history || [],
+      source: r.source || null,
+      // Where the layout step put the text, and why.
+      zone: r.zone || null, tone: r.tone || null, layoutReason: r.layout_reason || null,
     };
   }));
   const about = normalizeAbout(row.about);
-  const has = (id) => slots.find((s) => s.id === id)?.imageUrl;
   const busy = slots.some((s) => s.status === 'queued' || s.status === 'running');
+  const pdfReady = !busy && Boolean(about.name) && slots.every((s) => s.imageUrl);
   return {
-    id: row.id, about, createdAt: msOf(row.created_at), updatedAt: msOf(row.updated_at),
+    id: row.id, story: story.id, storyTitle: story.title, about, createdAt: msOf(row.created_at), updatedAt: msOf(row.updated_at),
     photoUrl: `/api/books/${row.id}/images/photo`,
-    busy,
-    pdfReady: !busy && Boolean(about.name) && Boolean(has('reference')) && PAGES.every((p) => has(p.id)),
+    busy, pdfReady,
+    stage: { ...stageOf(slots, { name: about.name, story, pdfReady }), steps: STAGES },
+    madeInMs: made?.ms ?? null,
+    refunded: Boolean(row.refunded),
+    cost: { totalUsd: cost.total, firstDrawingsUsd: cost.first_drawings, retriesUsd: cost.retries, checksUsd: cost.checks, drawings: cost.n_first, retries: cost.n_retries, checks: cost.n_checks, priceCents: billing.PRICE_CENTS },
     now: Date.now(),
     slots,
   };
@@ -183,32 +276,45 @@ async function ownBook(req) {
 app.get('/api/books', requireUser, async (req, res) => {
   const rows = await store.listBooks(req.userId);
   const thumb = (r) =>
-    r.page1_v != null ? `/api/books/${r.id}/images/cupboard?v=${r.page1_v}`
-    : r.ref_v != null ? `/api/books/${r.id}/images/reference?v=${r.ref_v}`
+    r.page1_v != null ? `/api/books/${r.id}/images/p01?size=thumb&v=${r.page1_v}`
+    : r.ref_v != null ? `/api/books/${r.id}/images/reference?size=thumb&v=${r.ref_v}`
     : null;
   res.json({
     books: rows.map((r) => ({
-      id: r.id, name: normalizeAbout(r.about).name, createdAt: msOf(r.created_at), updatedAt: msOf(r.updated_at),
+      id: r.id, story: r.story, storyTitle: storyOf(r.story).title, name: normalizeAbout(r.about).name,
+      createdAt: msOf(r.created_at), updatedAt: msOf(r.updated_at),
       thumbUrl: thumb(r), done: r.done, total: r.total, busy: Boolean(r.busy),
+      pdfUrl: !r.busy && r.done >= r.total ? `/api/books/${r.id}/pdf` : null,
     })),
   });
 });
 
 app.post('/api/books', requireUser, async (req, res) => {
   const photo = parseImage(req.body?.photo, 'photo');
+  const storyId = req.body?.story;
+  if (!Object.hasOwn(STORIES, storyId)) throw new HttpError(400, 'Choose a story.');
+  const about = normalizeAbout(req.body?.about);
+  if (!about.name) throw new HttpError(400, "Add the child's name: it is printed in the story.");
   if ((await store.countBooks(req.userId)) >= MAX_BOOKS) {
     throw new HttpError(429, `You have ${MAX_BOOKS} books, which is the limit. Delete one to make another.`);
   }
-  const bookId = await store.createBook(req.userId, { buffer: Buffer.from(photo.data, 'base64'), mimeType: photo.mimeType });
+  await jobs.checkBookBudget(req.userId);
+  const story = STORIES[storyId];
+  // The $0.99 leaves the balance first; it comes back if the book can't even start.
+  const txId = await billing.chargeBook(req.userId, `${story.title}, starring ${about.name}`);
+  let bookId;
   try {
-    await jobs.startGeneration({ bookId, userId: req.userId, slots: SLOTS.map((s) => s.id) });
+    bookId = await store.createBook(req.userId, { buffer: Buffer.from(photo.data, 'base64'), mimeType: photo.mimeType }, { story: storyId, about });
+    await billing.attachBook(txId, bookId);
+    await jobs.startGeneration({ bookId, userId: req.userId, slots: SLOTS.map((s) => s.id), purpose: 'book' });
   } catch (err) {
-    await store.deleteBook(bookId);
+    await billing.refundBook(req.userId, null, 'the book could not be started');
+    if (bookId) await store.deleteBook(bookId);
     throw err;
   }
-  await store.logEvent({ userId: req.userId, bookId, kind: 'book.create' });
+  await store.logEvent({ userId: req.userId, bookId, kind: 'book.create', detail: { story: storyId } });
   const row = await store.getBookRow(bookId, req.userId);
-  res.status(201).json({ book: await bookJson(row) });
+  res.status(201).json({ book: await bookJson(row), balanceCents: await billing.balance(req.userId) });
 });
 
 app.get('/api/books/:id', requireUser, async (req, res) => {
@@ -254,28 +360,70 @@ app.delete('/api/books/:id', requireUser, async (req, res) => {
 app.get('/api/books/:id/images/:slot', requireUser, async (req, res) => {
   const row = await ownBook(req);
   const { slot } = req.params;
-  const img = slot === 'photo' ? await store.getPhoto(row.id) : Object.hasOwn(SLOT_BY_ID, slot) ? await store.getImage(row.id, slot) : null;
+  const img = slot === 'photo' ? await store.getPhoto(row.id)
+    : Object.hasOwn(SLOT_BY_ID, slot) ? await store.getImage(row.id, slot, { thumb: req.query.size === 'thumb' })
+    : null;
   if (!img) throw new HttpError(404, 'No picture here yet.');
   res.set({ 'Content-Type': img.mimeType, 'Cache-Control': req.query.v ? 'private, max-age=31536000, immutable' : 'private, no-cache' });
   res.send(img.buffer);
 });
 
-// Pages + About Me -> one PDF. No model call; the text comes from the server's storyboard.
+// The stored PDF, or a fresh one if something changed since it was built. No model call.
 app.get('/api/books/:id/pdf', requireUser, async (req, res) => {
   const row = await ownBook(req);
   const about = normalizeAbout(row.about);
   if (!about.name) throw new HttpError(400, "Add the child's name for the About Me page.");
-  const b64 = (img) => img && { data: img.buffer.toString('base64'), mimeType: img.mimeType };
-  const reference = b64(await store.getImage(row.id, 'reference'));
-  const pages = await Promise.all(PAGES.map(async (p) => ({ ...p, text: pageText(p, about.name), image: b64(await store.getImage(row.id, p.id)) })));
-  const missing = pages.find((p) => !p.image);
-  if (missing) throw new HttpError(400, `Page ${missing.number} hasn't been made yet.`);
-  if (!reference) throw new HttpError(400, "Your Jack hasn't been made yet.");
-  const pdf = await buildBookPdf({ pages, about, reference });
-  const file = `${about.name.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-') || 'My'}-JackAndTheBeanstalk.pdf`;
+  const pdf = (await store.getPdf(row.id)) || (await buildAndStorePdf(row.id));
+  if (!pdf) throw new HttpError(400, "Some pages haven't been made yet.");
+  const story = storyOf(row.story);
+  const file = `${about.name.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-') || 'My'}-${story.title.replace(/[^A-Za-z]/g, '')}.pdf`;
   await store.logEvent({ userId: req.userId, bookId: row.id, kind: 'book.pdf' });
-  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${file}"` });
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${file}"`, 'Cache-Control': 'private, no-cache' });
   res.send(pdf);
+});
+
+// --- Account and money ----------------------------------------------------------------
+const baseUrl = (req) => process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+
+// Balance, every credit and debit, refunds, and what books cost us to make.
+app.get('/api/account', requireUser, async (req, res) => {
+  const user = await store.getUser(req.userId);
+  const [account, site, mine, setupUsd] = await Promise.all([
+    billing.accountJson(user), store.costSummary(), store.costSummary({ userId: req.userId }), library.libraryCost(),
+  ]);
+  const shape = (c) => ({
+    books: c.books, totalUsd: c.total, averageUsd: c.books ? c.total / c.books : null,
+    firstDrawingsUsd: c.first_drawings, retriesUsd: c.retries, checksUsd: c.checks,
+    drawings: c.n_first, retries: c.n_retries, checks: c.n_checks,
+  });
+  res.json({ ...account, costs: { priceCents: billing.PRICE_CENTS, site: shape(site), mine: shape(mine), setupUsd } });
+});
+
+app.post('/api/billing/checkout', requireUser, async (req, res) => {
+  res.json(await billing.createCheckout({ userId: req.userId, amountCents: req.body?.amountCents, baseUrl: baseUrl(req) }));
+});
+
+// Stripe sends the browser back here after a payment. The session is checked with Stripe before any credit.
+app.get('/billing/return', async (req, res) => {
+  const status = typeof req.query.session_id === 'string' ? await billing.confirmSession(req.query.session_id) : 'unknown';
+  res.redirect(`/?view=account&funding=${status}`);
+});
+
+// Local and test runs without a Stripe key: a stand-in for Stripe's payment page.
+app.get('/billing/mock-pay', async (req, res) => {
+  if (billing.stripeMode() !== 'mock') return res.status(404).end();
+  const status = await billing.confirmSession(String(req.query.session_id || ''), { mockPaid: true });
+  res.redirect(`/?view=account&funding=${status}`);
+});
+
+app.post('/api/billing/refunds', requireUser, async (req, res) => {
+  const id = await billing.requestRefund({ userId: req.userId, paymentId: req.body?.paymentId, reason: req.body?.reason });
+  res.status(201).json({ refundId: id });
+});
+
+app.post('/api/billing/refunds/:id/process', requireUser, async (req, res) => {
+  await billing.processRefund({ refundId: req.params.id, user: await store.getUser(req.userId) });
+  res.json({ ok: true });
 });
 
 app.use((err, _req, res, _next) => {
@@ -287,6 +435,7 @@ app.use((err, _req, res, _next) => {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await db(); // connect and create the tables before taking traffic
+  await library.seedLibrary(); // the character bible and the pre-made scenes
   app.listen(PORT, () => log.info(`Jack and the Beanstalk on http://localhost:${PORT} (model ${MODEL}${isMock() ? ', MOCK images' : ''})`));
 }
 

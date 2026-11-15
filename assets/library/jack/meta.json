@@ -1,0 +1,1362 @@
+{
+ "characters": {
+  "hero": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 89,
+   "passed": true,
+   "summary": "The image shows one clear hero child with face visible, dressed as described with minor differences in vest color and patch placement; no text or defects.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 89,
+     "issues": [],
+     "summary": "The image shows one clear hero child with face visible, dressed as described with minor differences in vest color and patch placement; no text or defects."
+    }
+   ],
+   "costUsd": 0.007567,
+   "model": "gpt-image-2.5-flare"
+  },
+  "giantwife": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The giant's wife is well depicted with correct features and clothing; the middle band is not clear due to the figure's body.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The giant's wife is well depicted with correct features and clothing; the middle band is not clear due to the figure's body."
+    }
+   ],
+   "costUsd": 0.007521,
+   "model": "gpt-image-2.5-flare"
+  },
+  "mother": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very close to the description; a thin, kind, tired-looking woman with brown hair in a loose bun, faded blue dress, and cream apron. No hero child present.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very close to the description; a thin, kind, tired-looking woman with brown hair in a loose bun, faded blue dress, and cream apron. No hero child present."
+    }
+   ],
+   "costUsd": 0.007497,
+   "model": "gpt-image-2.5-flare"
+  },
+  "cow": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.007475,
+   "model": "gpt-image-2.5-flare"
+  },
+  "giant": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The giant matches the description well with correct colors and features; no hero child present; middle band contains the giant's face and upper body, so not clear for text.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The giant matches the description well with correct colors and features; no hero child present; middle band contains the giant's face and upper body, so not clear for text."
+    }
+   ],
+   "costUsd": 0.007599,
+   "model": "gpt-image-2.5-flare"
+  },
+  "oldman": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.007501,
+   "model": "gpt-image-2.5-flare"
+  },
+  "harp": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.00745,
+   "model": "gpt-image-2.5-flare"
+  },
+  "hen": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The hen is well depicted with the correct colors and proud manner; no hero child present as required.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The hen is well depicted with the correct colors and proud manner; no hero child present as required."
+    }
+   ],
+   "costUsd": 0.007474,
+   "model": "gpt-image-2.5-flare"
+  }
+ },
+ "scenes": {
+  "p11": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the scene matches well with the hero on the table holding a spoon, the giant's wife behind looking worried, and jiggling spoons visible. The hearth fire is warm and large. The middle ",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene matches well with the giant's kitchen, firelight, hero on table with spoon, giant's wife worried, and jiggling spoons. Middle band is not clear due to faces and objects."
+    }
+   ],
+   "costUsd": 0.026871,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.38,
+      "y0": 0.44,
+      "x1": 0.52,
+      "y1": 0.62
+     },
+     {
+      "label": "giant's wife",
+      "x0": 0.62,
+      "y0": 0.33,
+      "x1": 0.74,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "spoon held by hero",
+      "x0": 0.44,
+      "y0": 0.58,
+      "x1": 0.47,
+      "y1": 0.62
+     },
+     {
+      "label": "bowl of porridge",
+      "x0": 0.23,
+      "y0": 0.56,
+      "x1": 0.38,
+      "y1": 0.67
+     },
+     {
+      "label": "jiggling spoons",
+      "x0": 0.66,
+      "y0": 0.66,
+      "x1": 0.75,
+      "y1": 0.72
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the scene matches well with the hero on the table holding a spoon, the giant's wife behind looking worried, and jiggling spoons visible. The hearth fire is warm and large. The middle ",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p04": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; the old man is tipping his hat and leaning on his stick, the hero holds the rope and looks curious; the cow is present; the setting matches the description well.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene matches well with all key elements present and clear, minor note: the middle band is not clear for text due to faces and objects."
+    }
+   ],
+   "costUsd": 0.035076,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.33,
+      "y0": 0.26,
+      "x1": 0.46,
+      "y1": 0.52
+     },
+     {
+      "label": "old man",
+      "x0": 0.62,
+      "y0": 0.31,
+      "x1": 0.73,
+      "y1": 0.56
+     },
+     {
+      "label": "cow",
+      "x0": 0.14,
+      "y0": 0.33,
+      "x1": 0.23,
+      "y1": 0.5
+     }
+    ],
+    "objects": [
+     {
+      "label": "rope",
+      "x0": 0.29,
+      "y0": 0.66,
+      "x1": 0.38,
+      "y1": 0.75
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; the old man is tipping his hat and leaning on his stick, the hero holds the rope and looks curious; the cow is present; the setting matches the description well.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p06": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; the scene matches well with clear faces and beans visible, but the mother's hands are not fully raised as described.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; the scene matches well with clear faces and beans visible, but the mother's hands are not fully raised as described."
+    }
+   ],
+   "costUsd": 0.024356,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.14,
+      "y0": 0.33,
+      "x1": 0.29,
+      "y1": 0.56
+     },
+     {
+      "label": "mother",
+      "x0": 0.57,
+      "y0": 0.27,
+      "x1": 0.7,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "five speckled beans",
+      "x0": 0.21,
+      "y0": 0.56,
+      "x1": 0.26,
+      "y1": 0.59
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; the scene matches well with clear faces and beans visible, but the mother's hands are not fully raised as described.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p02": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The scene mostly matches the description well with all key elements present; the middle band is not clear due to faces and the cow's bell.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The scene mostly matches the description well with all key elements present; the middle band is not clear due to faces and the cow's bell."
+    }
+   ],
+   "costUsd": 0.032793,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.18,
+      "y0": 0.26,
+      "x1": 0.34,
+      "y1": 0.52
+     },
+     {
+      "label": "mother",
+      "x0": 0.56,
+      "y0": 0.22,
+      "x1": 0.69,
+      "y1": 0.53
+     },
+     {
+      "label": "cow",
+      "x0": 0.38,
+      "y0": 0.29,
+      "x1": 0.52,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "cow's rope",
+      "x0": 0.29,
+      "y0": 0.58,
+      "x1": 0.38,
+      "y1": 0.66
+     },
+     {
+      "label": "cow's brass bell",
+      "x0": 0.43,
+      "y0": 0.54,
+      "x1": 0.47,
+      "y1": 0.58
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "The scene mostly matches the description well with all key elements present; the middle band is not clear due to faces and the cow's bell.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p01": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the scene is well depicted with the hero and mother at the empty cupboard, mother holding the empty flour sack, and the cobweb visible. The early morning light and cosy kitchen are we",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene is well depicted with the hero and mother at the empty cupboard, mother holding the empty flour sack, and the cobweb visible. The early morning light and cosy kitchen are we"
+    }
+   ],
+   "costUsd": 0.024528,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.26,
+      "y0": 0.38,
+      "x1": 0.38,
+      "y1": 0.58
+     },
+     {
+      "label": "mother",
+      "x0": 0.44,
+      "y0": 0.3,
+      "x1": 0.56,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "empty cupboard with cobweb",
+      "x0": 0.6,
+      "y0": 0.25,
+      "x1": 0.8,
+      "y1": 0.7
+     },
+     {
+      "label": "empty flour sack",
+      "x0": 0.48,
+      "y0": 0.5,
+      "x1": 0.58,
+      "y1": 0.65
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the scene is well depicted with the hero and mother at the empty cupboard, mother holding the empty flour sack, and the cobweb visible. The early morning light and cosy kitchen are we",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p03": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the hero and cow are walking on a dirt road with daisies and green hills, but the hero's free arm is not swinging and the cow's rope is held, not loosely swinging.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the hero and cow are walking on a dirt road with daisies and green hills, but the hero's free arm is not swinging and the cow's rope is held, not loosely swinging."
+    }
+   ],
+   "costUsd": 0.024424,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.33,
+      "y0": 0.23,
+      "x1": 0.47,
+      "y1": 0.48
+     },
+     {
+      "label": "cow",
+      "x0": 0.53,
+      "y0": 0.29,
+      "x1": 0.66,
+      "y1": 0.5
+     }
+    ],
+    "objects": [
+     {
+      "label": "rope",
+      "x0": 0.44,
+      "y0": 0.48,
+      "x1": 0.5,
+      "y1": 0.53
+     },
+     {
+      "label": "bell",
+      "x0": 0.53,
+      "y0": 0.5,
+      "x1": 0.56,
+      "y1": 0.54
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the hero and cow are walking on a dirt road with daisies and green hills, but the hero's free arm is not swinging and the cow's rope is held, not loosely swinging.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p05": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; hero holds beans in cupped palm, old man behind with rope and hat, by hedge on road. Cow included but not mentioned in text. Middle band not clear for text due to faces.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; hero holds beans in cupped palm, old man behind with rope and hat, by hedge on road. Cow included but not mentioned in text. Middle band not clear for text due to faces."
+    }
+   ],
+   "costUsd": 0.032865,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.29,
+      "y0": 0.14,
+      "x1": 0.48,
+      "y1": 0.38
+     },
+     {
+      "label": "old man",
+      "x0": 0.53,
+      "y0": 0.23,
+      "x1": 0.62,
+      "y1": 0.4
+     },
+     {
+      "label": "cow",
+      "x0": 0.65,
+      "y0": 0.26,
+      "x1": 0.73,
+      "y1": 0.4
+     }
+    ],
+    "objects": [
+     {
+      "label": "beans",
+      "x0": 0.31,
+      "y0": 0.44,
+      "x1": 0.38,
+      "y1": 0.49
+     },
+     {
+      "label": "rope",
+      "x0": 0.56,
+      "y0": 0.44,
+      "x1": 0.59,
+      "y1": 0.48
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; hero holds beans in cupped palm, old man behind with rope and hat, by hedge on road. Cow included but not mentioned in text. Middle band not clear for text due to faces.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p08": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero and colossal beanstalk present, hero gazing upward, cottage garden visible. Middle band not clear due to hero's face and beanstalk leaves.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero and colossal beanstalk present, hero gazing upward, cottage garden visible. Middle band not clear due to hero's face and beanstalk leaves."
+    }
+   ],
+   "costUsd": 0.016123,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.38,
+      "y0": 0.33,
+      "x1": 0.52,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "beanstalk",
+      "x0": 0,
+      "y0": 0.1,
+      "x1": 0.25,
+      "y1": 0.9
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; hero and colossal beanstalk present, hero gazing upward, cottage garden visible. Middle band not clear due to hero's face and beanstalk leaves.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p07": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good: hero visible at window, beans falling into soil, dusk sky. Slightly more twilight blue in sky would improve scene match.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good: hero visible at window, beans falling into soil, dusk sky. Slightly more twilight blue in sky would improve scene match."
+    }
+   ],
+   "costUsd": 0.016307,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.44,
+      "y0": 0.26,
+      "x1": 0.56,
+      "y1": 0.44
+     }
+    ],
+    "objects": [
+     {
+      "label": "bean",
+      "x0": 0.47,
+      "y0": 0.48,
+      "x1": 0.52,
+      "y1": 0.54
+     },
+     {
+      "label": "bean",
+      "x0": 0.46,
+      "y0": 0.56,
+      "x1": 0.52,
+      "y1": 0.62
+     },
+     {
+      "label": "bean",
+      "x0": 0.44,
+      "y0": 0.64,
+      "x1": 0.5,
+      "y1": 0.7
+     },
+     {
+      "label": "bean",
+      "x0": 0.43,
+      "y0": 0.72,
+      "x1": 0.49,
+      "y1": 0.78
+     },
+     {
+      "label": "bean",
+      "x0": 0.44,
+      "y0": 0.8,
+      "x1": 0.5,
+      "y1": 0.86
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks very good: hero visible at window, beans falling into soil, dusk sky. Slightly more twilight blue in sky would improve scene match.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p12": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The hero is crouching inside the open oven door with finger to lips, wide eyes, and the oven is visible. The kitchen background is minimal but the oven is clearly shown. The middle band is not clear d",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The hero is crouching inside the open oven door with finger to lips, wide eyes, and the oven is visible. The kitchen background is minimal but the oven is clearly shown. The middle band is not clear d"
+    }
+   ],
+   "costUsd": 0.016009,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.27,
+      "y0": 0.27,
+      "x1": 0.53,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "oven door gap",
+      "x0": 0.1,
+      "y0": 0.4,
+      "x1": 0.9,
+      "y1": 0.7
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "The hero is crouching inside the open oven door with finger to lips, wide eyes, and the oven is visible. The kitchen background is minimal but the oven is clearly shown. The middle band is not clear d",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p09": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero, beanstalk leaf, castle, clouds, and sunshine all present; castle door is wooden but not giant; scene well depicted.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero, beanstalk leaf, castle, clouds, and sunshine all present; castle door is wooden but not giant; scene well depicted."
+    }
+   ],
+   "costUsd": 0.016007,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.38,
+      "x1": 0.27,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "beanstalk leaf",
+      "x0": 0,
+      "y0": 0.2,
+      "x1": 0.18,
+      "y1": 0.55
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; hero, beanstalk leaf, castle, clouds, and sunshine all present; castle door is wooden but not giant; scene well depicted.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p10": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the giant's wife is bending down and beckoning, hero is hopeful and nervous, castle door and morning light present. Slightly less giant scale but acceptable.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the giant's wife is bending down and beckoning, hero is hopeful and nervous, castle door and morning light present. Slightly less giant scale but acceptable."
+    }
+   ],
+   "costUsd": 0.024332,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.14,
+      "y0": 0.38,
+      "x1": 0.29,
+      "y1": 0.62
+     },
+     {
+      "label": "giant's wife",
+      "x0": 0.44,
+      "y0": 0.18,
+      "x1": 0.72,
+      "y1": 0.56
+     }
+    ],
+    "objects": [],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the giant's wife is bending down and beckoning, hero is hopeful and nervous, castle door and morning light present. Slightly less giant scale but acceptable.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p16": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.032717,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.14,
+      "y0": 0.38,
+      "x1": 0.29,
+      "y1": 0.56
+     },
+     {
+      "label": "golden harp face",
+      "x0": 0.31,
+      "y0": 0.38,
+      "x1": 0.38,
+      "y1": 0.48
+     },
+     {
+      "label": "giant",
+      "x0": 0.66,
+      "y0": 0.38,
+      "x1": 0.75,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "golden harp",
+      "x0": 0.26,
+      "y0": 0.44,
+      "x1": 0.38,
+      "y1": 0.66
+     },
+     {
+      "label": "spoon",
+      "x0": 0.79,
+      "y0": 0.27,
+      "x1": 0.83,
+      "y1": 0.31
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p14": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The scene matches well: hero holds open sack spilling gold coins, mother shows happy astonishment; faces and coins clearly visible; no text; middle and bottom bands not clear due to faces and coins.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The scene matches well: hero holds open sack spilling gold coins, mother shows happy astonishment; faces and coins clearly visible; no text; middle and bottom bands not clear due to faces and coins."
+    }
+   ],
+   "costUsd": 0.024309,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.34,
+      "y1": 0.53
+     },
+     {
+      "label": "mother",
+      "x0": 0.54,
+      "y0": 0.23,
+      "x1": 0.73,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "open sack with gold coins",
+      "x0": 0.26,
+      "y0": 0.54,
+      "x1": 0.44,
+      "y1": 0.7
+     },
+     {
+      "label": "gold coins on table",
+      "x0": 0.3,
+      "y0": 0.7,
+      "x1": 0.62,
+      "y1": 0.83
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "The scene matches well: hero holds open sack spilling gold coins, mother shows happy astonishment; faces and coins clearly visible; no text; middle and bottom bands not clear due to faces and coins.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p13": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.024372,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.07,
+      "y0": 0.38,
+      "x1": 0.22,
+      "y1": 0.62
+     },
+     {
+      "label": "giant",
+      "x0": 0.56,
+      "y0": 0.3,
+      "x1": 0.75,
+      "y1": 0.57
+     }
+    ],
+    "objects": [
+     {
+      "label": "gold coins",
+      "x0": 0.56,
+      "y0": 0.57,
+      "x1": 0.75,
+      "y1": 0.67
+     },
+     {
+      "label": "gold sacks",
+      "x0": 0.75,
+      "y0": 0.57,
+      "x1": 0.85,
+      "y1": 0.67
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p17": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; the giant is red-faced and comical but not clearly windmilling arms; the hero sprints with harp under arm; castle on clouds visible; good composition with clear faces and harp.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; the giant is red-faced and comical but not clearly windmilling arms; the hero sprints with harp under arm; castle on clouds visible; good composition with clear faces and harp."
+    }
+   ],
+   "costUsd": 0.032692,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.33,
+      "y0": 0.22,
+      "x1": 0.47,
+      "y1": 0.44
+     },
+     {
+      "label": "giant",
+      "x0": 0.67,
+      "y0": 0.31,
+      "x1": 0.79,
+      "y1": 0.48
+     },
+     {
+      "label": "harp face",
+      "x0": 0.23,
+      "y0": 0.33,
+      "x1": 0.27,
+      "y1": 0.39
+     }
+    ],
+    "objects": [
+     {
+      "label": "golden harp",
+      "x0": 0.18,
+      "y0": 0.38,
+      "x1": 0.29,
+      "y1": 0.56
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; the giant is red-faced and comical but not clearly windmilling arms; the hero sprints with harp under arm; castle on clouds visible; good composition with clear faces and harp.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p15": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Mostly correct scene but the hero is running on the table surface, not along the top edge of an enormous table; the giant is sleeping; the hen is squawking; the golden egg is visible.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Mostly correct scene but the hero is running on the table surface, not along the top edge of an enormous table; the giant is sleeping; the hen is squawking; the golden egg is visible."
+    }
+   ],
+   "costUsd": 0.032726,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.33,
+      "y0": 0.23,
+      "x1": 0.46,
+      "y1": 0.44
+     },
+     {
+      "label": "hen",
+      "x0": 0.48,
+      "y0": 0.33,
+      "x1": 0.56,
+      "y1": 0.44
+     },
+     {
+      "label": "giant",
+      "x0": 0.74,
+      "y0": 0.44,
+      "x1": 0.83,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "golden egg",
+      "x0": 0.54,
+      "y0": 0.52,
+      "x1": 0.58,
+      "y1": 0.57
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Mostly correct scene but the hero is running on the table surface, not along the top edge of an enormous table; the giant is sleeping; the hen is squawking; the golden egg is visible.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p19": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; mother chopping beanstalk, hero holding harp and cheering, cottage garden setting. Middle band not clear due to faces and action.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; mother chopping beanstalk, hero holding harp and cheering, cottage garden setting. Middle band not clear due to faces and action."
+    }
+   ],
+   "costUsd": 0.024465,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "mother",
+      "x0": 0.44,
+      "y0": 0.2,
+      "x1": 0.58,
+      "y1": 0.44
+     },
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.38,
+      "x1": 0.26,
+      "y1": 0.58
+     }
+    ],
+    "objects": [
+     {
+      "label": "golden harp",
+      "x0": 0.07,
+      "y0": 0.56,
+      "x1": 0.2,
+      "y1": 0.7
+     },
+     {
+      "label": "axe blade biting beanstalk",
+      "x0": 0.66,
+      "y0": 0.52,
+      "x1": 0.75,
+      "y1": 0.62
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; mother chopping beanstalk, hero holding harp and cheering, cottage garden setting. Middle band not clear due to faces and action.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p18": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; the giant is higher but not quite clinging clumsily with legs flailing; hero and harp clearly visible hugging the stalk; countryside and clouds shown well.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; the giant is higher but not quite clinging clumsily with legs flailing; hero and harp clearly visible hugging the stalk; countryside and clouds shown well."
+    }
+   ],
+   "costUsd": 0.032756,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.26,
+      "y0": 0.53,
+      "x1": 0.42,
+      "y1": 0.69
+     },
+     {
+      "label": "harp face",
+      "x0": 0.38,
+      "y0": 0.62,
+      "x1": 0.43,
+      "y1": 0.67
+     },
+     {
+      "label": "giant",
+      "x0": 0.56,
+      "y0": 0.26,
+      "x1": 0.63,
+      "y1": 0.36
+     }
+    ],
+    "objects": [
+     {
+      "label": "harp",
+      "x0": 0.33,
+      "y0": 0.62,
+      "x1": 0.43,
+      "y1": 0.75
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; the giant is higher but not quite clinging clumsily with legs flailing; hero and harp clearly visible hugging the stalk; countryside and clouds shown well.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p20": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; all key elements present except the mother is smiling rather than laughing, and the harp is personified but not visibly singing with musical notes.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; all key elements present except the mother is smiling rather than laughing, and the harp is personified but not visibly singing with musical notes."
+    }
+   ],
+   "costUsd": 0.04943,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.31,
+      "y0": 0.44,
+      "x1": 0.43,
+      "y1": 0.62
+     },
+     {
+      "label": "cow",
+      "x0": 0.43,
+      "y0": 0.38,
+      "x1": 0.56,
+      "y1": 0.62
+     },
+     {
+      "label": "mother",
+      "x0": 0.56,
+      "y0": 0.38,
+      "x1": 0.66,
+      "y1": 0.62
+     },
+     {
+      "label": "hen",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.21,
+      "y1": 0.38
+     },
+     {
+      "label": "harp",
+      "x0": 0.77,
+      "y0": 0.38,
+      "x1": 0.83,
+      "y1": 0.52
+     }
+    ],
+    "objects": [
+     {
+      "label": "beanstalk stump",
+      "x0": 0.73,
+      "y0": 0.7,
+      "x1": 0.81,
+      "y1": 0.9
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; all key elements present except the mother is smiling rather than laughing, and the harp is personified but not visibly singing with musical notes.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  }
+ }
+}

@@ -52,6 +52,112 @@ create table if not exists events (
 );
 create index if not exists events_by_kind on events (kind, at desc);
 create index if not exists events_by_user on events (user_id, at desc);
+-- ---- homework 4: stories, the quality loop, layout, money and API cost -------------
+alter table books add column if not exists story text not null default 'jack';
+alter table books add column if not exists template int not null default 1;
+alter table books add column if not exists pdf bytea;
+alter table books add column if not exists refunded boolean not null default false;
+
+alter table book_images add column if not exists thumb bytea;
+alter table book_images add column if not exists prev_thumb bytea;
+alter table book_images add column if not exists prev_meta jsonb;
+alter table book_images add column if not exists attempt int not null default 0;   -- drawing in progress
+alter table book_images add column if not exists phase text;                      -- 'drawing' | 'checking'
+alter table book_images add column if not exists attempts int not null default 0;  -- drawings made for the saved picture
+alter table book_images add column if not exists chosen int;                      -- which drawing was kept
+alter table book_images add column if not exists score real;
+alter table book_images add column if not exists passed boolean;
+alter table book_images add column if not exists analysis jsonb;
+alter table book_images add column if not exists zone text;                       -- where the text goes
+alter table book_images add column if not exists tone text;
+alter table book_images add column if not exists layout_reason text;
+alter table book_images add column if not exists source text;                     -- 'generated' | 'template'
+
+-- The character bible: one picture per character per story ('hero' is the stand-in).
+create table if not exists characters (
+  story text not null,
+  id text not null,
+  name text not null,
+  description text not null,
+  data bytea not null,
+  mime text not null,
+  thumb bytea,
+  hash text,
+  meta jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (story, id)
+);
+
+-- The pre-made scenes: 20 per story, one per template page.
+create table if not exists scenes (
+  story text not null,
+  page text not null,
+  data bytea not null,
+  mime text not null,
+  thumb bytea,
+  hash text,
+  meta jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (story, page)
+);
+
+-- Money. A user's balance is the sum of their transactions (cents, signed).
+create table if not exists payments (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  session_id text unique not null,
+  payment_intent text,
+  amount_cents int not null,
+  status text not null default 'pending',     -- pending | paid | expired
+  created_at timestamptz not null default now(),
+  paid_at timestamptz
+);
+create table if not exists refunds (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  payment_id bigint not null references payments(id) on delete cascade,
+  amount_cents int not null,
+  reason text,
+  status text not null default 'requested',   -- requested | processed | failed
+  stripe_refund_id text,
+  error text,
+  requested_at timestamptz not null default now(),
+  processed_at timestamptz
+);
+create table if not exists transactions (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  user_id bigint not null references users(id) on delete cascade,
+  amount_cents int not null,                  -- credit > 0, debit < 0
+  kind text not null,                         -- fund | book | book_refund | refund | refund_reversal
+  description text not null,
+  book_id uuid,
+  payment_id bigint,
+  refund_id bigint,
+  balance_after int not null
+);
+create index if not exists transactions_by_user on transactions (user_id, id desc);
+create unique index if not exists one_credit_per_payment on transactions (payment_id) where kind = 'fund';
+
+-- Every call to a paid API, with what it cost us.
+create table if not exists api_calls (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  user_id bigint,
+  book_id uuid,
+  slot text,
+  kind text not null,                         -- image | analysis
+  purpose text not null,                      -- book | redo | fix
+  attempt int not null default 1,
+  model text,
+  tokens_in int,
+  tokens_out int,
+  cost_usd numeric(12,6) not null default 0,
+  ms int,
+  ok boolean not null default true,
+  mock boolean not null default false
+);
+create index if not exists api_calls_by_book on api_calls (book_id);
 `;
 
 async function connect() {
@@ -59,7 +165,7 @@ async function connect() {
   if (url) {
     const { default: pg } = await import('pg');
     const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
-    const pool = new pg.Pool({ connectionString: url, max: 5, ssl: local ? false : { rejectUnauthorized: false } });
+    const pool = new pg.Pool({ connectionString: url, max: 8, ssl: local ? false : { rejectUnauthorized: false } });
     pool.on('error', (err) => log.error({ err }, 'postgres pool error'));
     log.info('database: postgres (DATABASE_URL)');
     return { query: (sql, params) => pool.query(sql, params), exec: (sql) => pool.query(sql), close: () => pool.end() };

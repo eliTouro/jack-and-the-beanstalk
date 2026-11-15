@@ -1,0 +1,1230 @@
+{
+ "characters": {
+  "woodcutter": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The woodcutter matches the description well; no text or defects; clear bands for text.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The woodcutter matches the description well; no text or defects; clear bands for text."
+    }
+   ],
+   "costUsd": 0.007578,
+   "model": "gpt-image-2.5-flare"
+  },
+  "wolf": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "The wolf matches the description well: big, lanky grey with bushy tail, oversized ears, round yellow-green eyes, and a sly closed-mouth grin. Slightly more realistic but still silly and sneaky. No her",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "The wolf matches the description well: big, lanky grey with bushy tail, oversized ears, round yellow-green eyes, and a sly closed-mouth grin. Slightly more realistic but still silly and sneaky. No her"
+    }
+   ],
+   "costUsd": 0.007499,
+   "model": "gpt-image-2.5-flare"
+  },
+  "mother": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Mother character design matches description perfectly, no hero child present, clear background except middle band with character.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Mother character design matches description perfectly, no hero child present, clear background except middle band with character."
+    }
+   ],
+   "costUsd": 0.007453,
+   "model": "gpt-image-2.5-flare"
+  },
+  "grandmother": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Grandmother design matches description well; face clearly visible; middle band not clear due to shawl and hands.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Grandmother design matches description well; face clearly visible; middle band not clear due to shawl and hands."
+    }
+   ],
+   "costUsd": 0.00768,
+   "model": "gpt-image-2.5-flare"
+  },
+  "hero": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 89,
+   "passed": true,
+   "summary": "Looks like a good 3D portrait of the hero child in the correct costume, face clearly visible, no defects.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 89,
+     "issues": [],
+     "summary": "Looks like a good 3D portrait of the hero child in the correct costume, face clearly visible, no defects."
+    }
+   ],
+   "costUsd": 0.00762,
+   "model": "gpt-image-2.5-flare"
+  }
+ },
+ "scenes": {
+  "p04": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the wolf leans against the tree with paws behind back and sly grin, hero holds basket and looks up surprised but polite. The middle band is not clear due to faces and basket.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the wolf leans against the tree with paws behind back and sly grin, hero holds basket and looks up surprised but polite. The middle band is not clear due to faces and basket."
+    }
+   ],
+   "costUsd": 0.024416,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.18,
+      "y0": 0.27,
+      "x1": 0.38,
+      "y1": 0.53
+     },
+     {
+      "label": "wolf",
+      "x0": 0.58,
+      "y0": 0.2,
+      "x1": 0.75,
+      "y1": 0.48
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.26,
+      "y0": 0.58,
+      "x1": 0.38,
+      "y1": 0.68
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the wolf leans against the tree with paws behind back and sly grin, hero holds basket and looks up surprised but polite. The middle band is not clear due to faces and basket.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p02": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the scene matches well with the mother tucking the cloth over the basket and the hero reaching for the handle. The warm morning kitchen is well depicted. The middle band is not clear ",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene matches well with the mother tucking the cloth over the basket and the hero reaching for the handle. The warm morning kitchen is well depicted. The middle band is not clear "
+    }
+   ],
+   "costUsd": 0.024381,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.14,
+      "y0": 0.27,
+      "x1": 0.33,
+      "y1": 0.56
+     },
+     {
+      "label": "mother",
+      "x0": 0.53,
+      "y0": 0.22,
+      "x1": 0.72,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "wicker basket with honey cake and bottle",
+      "x0": 0.33,
+      "y0": 0.53,
+      "x1": 0.52,
+      "y1": 0.7
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the scene matches well with the mother tucking the cloth over the basket and the hero reaching for the handle. The warm morning kitchen is well depicted. The middle band is not clear ",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p03": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero, basket, birds, path, and forest all present; middle and bottom bands have faces and basket, so not clear for text.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero, basket, birds, path, and forest all present; middle and bottom bands have faces and basket, so not clear for text."
+    }
+   ],
+   "costUsd": 0.016081,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.38,
+      "y0": 0.26,
+      "x1": 0.62,
+      "y1": 0.53
+     },
+     {
+      "label": "bird",
+      "x0": 0.14,
+      "y0": 0.48,
+      "x1": 0.18,
+      "y1": 0.53
+     },
+     {
+      "label": "bird",
+      "x0": 0.82,
+      "y0": 0.38,
+      "x1": 0.86,
+      "y1": 0.43
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.29,
+      "y0": 0.56,
+      "x1": 0.43,
+      "y1": 0.69
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks very good; hero, basket, birds, path, and forest all present; middle and bottom bands have faces and basket, so not clear for text.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p01": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the scene matches well with the cottage, blue door, flowers, forest, sunny morning, happy twirling hero with red cloak, and smiling mother. The middle band is not clear due to faces a",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene matches well with the cottage, blue door, flowers, forest, sunny morning, happy twirling hero with red cloak, and smiling mother. The middle band is not clear due to faces a"
+    }
+   ],
+   "costUsd": 0.024403,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.23,
+      "y0": 0.38,
+      "x1": 0.38,
+      "y1": 0.56
+     },
+     {
+      "label": "mother",
+      "x0": 0.72,
+      "y0": 0.38,
+      "x1": 0.81,
+      "y1": 0.54
+     }
+    ],
+    "objects": [
+     {
+      "label": "blue door",
+      "x0": 0.69,
+      "y0": 0.33,
+      "x1": 0.81,
+      "y1": 0.62
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the scene matches well with the cottage, blue door, flowers, forest, sunny morning, happy twirling hero with red cloak, and smiling mother. The middle band is not clear due to faces a",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p05": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.024251,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.21,
+      "y0": 0.2,
+      "x1": 0.38,
+      "y1": 0.44
+     },
+     {
+      "label": "wolf",
+      "x0": 0.56,
+      "y0": 0.26,
+      "x1": 0.7,
+      "y1": 0.44
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.33,
+      "y0": 0.52,
+      "x1": 0.39,
+      "y1": 0.58
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p08": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Wolf is shown galloping with a sly grin and bushy tail; little stone cottage with green door visible in distance; no hero child present; scene matches description well.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Wolf is shown galloping with a sly grin and bushy tail; little stone cottage with green door visible in distance; no hero child present; scene matches description well."
+    }
+   ],
+   "costUsd": 0.01576,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "wolf face",
+      "x0": 0.48,
+      "y0": 0.44,
+      "x1": 0.58,
+      "y1": 0.58
+     }
+    ],
+    "objects": [
+     {
+      "label": "green door cottage",
+      "x0": 0.79,
+      "y0": 0.52,
+      "x1": 0.89,
+      "y1": 0.67
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Wolf is shown galloping with a sly grin and bushy tail; little stone cottage with green door visible in distance; no hero child present; scene matches description well.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p07": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.016014,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.38,
+      "y0": 0.26,
+      "x1": 0.62,
+      "y1": 0.53
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.18,
+      "y0": 0.62,
+      "x1": 0.33,
+      "y1": 0.79
+     },
+     {
+      "label": "flower bunch",
+      "x0": 0.57,
+      "y0": 0.44,
+      "x1": 0.67,
+      "y1": 0.58
+     },
+     {
+      "label": "butterfly",
+      "x0": 0.72,
+      "y0": 0.31,
+      "x1": 0.77,
+      "y1": 0.37
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p10": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.024122,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "grandmother",
+      "x0": 0.07,
+      "y0": 0.2,
+      "x1": 0.22,
+      "y1": 0.48
+     },
+     {
+      "label": "wolf",
+      "x0": 0.69,
+      "y0": 0.18,
+      "x1": 0.87,
+      "y1": 0.52
+     }
+    ],
+    "objects": [
+     {
+      "label": "patchwork quilt on bed",
+      "x0": 0.33,
+      "y0": 0.44,
+      "x1": 0.57,
+      "y1": 0.67
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p06": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the wolf gestures grandly to the flowers, the hero looks delighted with basket on arm, and the glade is full of bluebells, daisies, and buttercups.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the wolf gestures grandly to the flowers, the hero looks delighted with basket on arm, and the glade is full of bluebells, daisies, and buttercups."
+    }
+   ],
+   "costUsd": 0.024361,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.23,
+      "x1": 0.29,
+      "y1": 0.44
+     },
+     {
+      "label": "wolf",
+      "x0": 0.53,
+      "y0": 0.26,
+      "x1": 0.65,
+      "y1": 0.43
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.11,
+      "y0": 0.52,
+      "x1": 0.22,
+      "y1": 0.63
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the wolf gestures grandly to the flowers, the hero looks delighted with basket on arm, and the glade is full of bluebells, daisies, and buttercups.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p09": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.024112,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "grandmother",
+      "x0": 0.14,
+      "y0": 0.27,
+      "x1": 0.29,
+      "y1": 0.44
+     },
+     {
+      "label": "wolf",
+      "x0": 0.62,
+      "y0": 0.18,
+      "x1": 0.75,
+      "y1": 0.38
+     }
+    ],
+    "objects": [
+     {
+      "label": "green door",
+      "x0": 0.54,
+      "y0": 0.2,
+      "x1": 0.75,
+      "y1": 0.7
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p14": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks good overall; the wolf is comically springing out of bed with nightcap askew and goofy grin, hero jumps back with flowers scattering. Scene well depicted.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks good overall; the wolf is comically springing out of bed with nightcap askew and goofy grin, hero jumps back with flowers scattering. Scene well depicted."
+    }
+   ],
+   "costUsd": 0.024306,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.38,
+      "y1": 0.56
+     },
+     {
+      "label": "wolf",
+      "x0": 0.58,
+      "y0": 0.3,
+      "x1": 0.78,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "flowers",
+      "x0": 0.14,
+      "y0": 0.62,
+      "x1": 0.28,
+      "y1": 0.75
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks good overall; the wolf is comically springing out of bed with nightcap askew and goofy grin, hero jumps back with flowers scattering. Scene well depicted.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p12": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 100,
+   "passed": true,
+   "summary": "Looks right.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 100,
+     "issues": [],
+     "summary": "Looks right."
+    }
+   ],
+   "costUsd": 0.024273,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.2,
+      "x1": 0.38,
+      "y1": 0.52
+     },
+     {
+      "label": "wolf",
+      "x0": 0.56,
+      "y0": 0.33,
+      "x1": 0.79,
+      "y1": 0.57
+     }
+    ],
+    "objects": [
+     {
+      "label": "flowers",
+      "x0": 0.2,
+      "y0": 0.56,
+      "x1": 0.3,
+      "y1": 0.65
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks right.",
+    "likeness": 10,
+    "sceneMatch": 10
+   }
+  },
+  "p15": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero running around table with mouth open, cloak flying; wolf slipping on rag rug with nightcap over one eye; scene well depicted.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero running around table with mouth open, cloak flying; wolf slipping on rag rug with nightcap over one eye; scene well depicted."
+    }
+   ],
+   "costUsd": 0.024331,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.18,
+      "y0": 0.18,
+      "x1": 0.38,
+      "y1": 0.43
+     },
+     {
+      "label": "wolf",
+      "x0": 0.65,
+      "y0": 0.4,
+      "x1": 0.82,
+      "y1": 0.58
+     }
+    ],
+    "objects": [
+     {
+      "label": "round wooden table",
+      "x0": 0,
+      "y0": 0.5,
+      "x1": 0.3,
+      "y1": 0.75
+     },
+     {
+      "label": "rag rug",
+      "x0": 0.55,
+      "y0": 0.6,
+      "x1": 0.9,
+      "y1": 0.8
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; hero running around table with mouth open, cloak flying; wolf slipping on rag rug with nightcap over one eye; scene well depicted.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p13": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero and wolf faces visible with correct expressions, basket present, bedroom scene with sunlight; middle band not clear due to faces and bed.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero and wolf faces visible with correct expressions, basket present, bedroom scene with sunlight; middle band not clear due to faces and bed."
+    }
+   ],
+   "costUsd": 0.024364,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.34,
+      "y1": 0.52
+     },
+     {
+      "label": "wolf",
+      "x0": 0.62,
+      "y0": 0.32,
+      "x1": 0.79,
+      "y1": 0.52
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.18,
+      "y0": 0.56,
+      "x1": 0.29,
+      "y1": 0.67
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; hero and wolf faces visible with correct expressions, basket present, bedroom scene with sunlight; middle band not clear due to faces and bed.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p11": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks mostly right; the wolf is in bed with quilt and nightcap, hero is smiling with basket and flowers, but the bed is not clearly patchwork-quilted.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks mostly right; the wolf is in bed with quilt and nightcap, hero is smiling with basket and flowers, but the bed is not clearly patchwork-quilted."
+    }
+   ],
+   "costUsd": 0.024445,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.33,
+      "y1": 0.52
+     },
+     {
+      "label": "wolf",
+      "x0": 0.62,
+      "y0": 0.52,
+      "x1": 0.79,
+      "y1": 0.69
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.14,
+      "y0": 0.66,
+      "x1": 0.26,
+      "y1": 0.78
+     },
+     {
+      "label": "flowers",
+      "x0": 0.33,
+      "y0": 0.44,
+      "x1": 0.43,
+      "y1": 0.56
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks mostly right; the wolf is in bed with quilt and nightcap, hero is smiling with basket and flowers, but the bed is not clearly patchwork-quilted.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p16": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; all main characters and expressions are clear, scene matches description well, no text or defects.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; all main characters and expressions are clear, scene matches description well, no text or defects."
+    }
+   ],
+   "costUsd": 0.032674,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.14,
+      "y0": 0.38,
+      "x1": 0.26,
+      "y1": 0.56
+     },
+     {
+      "label": "woodcutter",
+      "x0": 0.47,
+      "y0": 0.29,
+      "x1": 0.57,
+      "y1": 0.46
+     },
+     {
+      "label": "wolf",
+      "x0": 0.67,
+      "y0": 0.44,
+      "x1": 0.75,
+      "y1": 0.56
+     }
+    ],
+    "objects": [],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks very good; all main characters and expressions are clear, scene matches description well, no text or defects.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p17": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the wolf is scrambling out with tail between legs, nightcap flying, woodcutter waving hat, hero cheering. The garden and doorway are shown. The middle band has faces and props, so not",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the wolf is scrambling out with tail between legs, nightcap flying, woodcutter waving hat, hero cheering. The garden and doorway are shown. The middle band has faces and props, so not"
+    }
+   ],
+   "costUsd": 0.032811,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.11,
+      "y0": 0.33,
+      "x1": 0.26,
+      "y1": 0.53
+     },
+     {
+      "label": "woodcutter",
+      "x0": 0.38,
+      "y0": 0.29,
+      "x1": 0.52,
+      "y1": 0.53
+     },
+     {
+      "label": "wolf",
+      "x0": 0.72,
+      "y0": 0.44,
+      "x1": 0.82,
+      "y1": 0.58
+     }
+    ],
+    "objects": [
+     {
+      "label": "frilly nightcap",
+      "x0": 0.66,
+      "y0": 0.26,
+      "x1": 0.74,
+      "y1": 0.34
+     },
+     {
+      "label": "hat",
+      "x0": 0.53,
+      "y0": 0.31,
+      "x1": 0.61,
+      "y1": 0.38
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; the wolf is scrambling out with tail between legs, nightcap flying, woodcutter waving hat, hero cheering. The garden and doorway are shown. The middle band has faces and props, so not",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p18": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; all main elements present and clear, hero face visible, woodcutter and wolf visible but small; middle band not clear due to characters.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; all main elements present and clear, hero face visible, woodcutter and wolf visible but small; middle band not clear due to characters."
+    }
+   ],
+   "costUsd": 0.032724,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.11,
+      "y0": 0.18,
+      "x1": 0.31,
+      "y1": 0.44
+     },
+     {
+      "label": "woodcutter",
+      "x0": 0.53,
+      "y0": 0.44,
+      "x1": 0.58,
+      "y1": 0.52
+     },
+     {
+      "label": "wolf",
+      "x0": 0.69,
+      "y0": 0.49,
+      "x1": 0.72,
+      "y1": 0.53
+     }
+    ],
+    "objects": [],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; all main elements present and clear, hero face visible, woodcutter and wolf visible but small; middle band not clear due to characters.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p19": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; grandmother and hero hugging happily, wardrobe open, bedroom visible. Grandmother's spectacles are askew and shawl is present. Faces are visible and expressive.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; grandmother and hero hugging happily, wardrobe open, bedroom visible. Grandmother's spectacles are askew and shawl is present. Faces are visible and expressive."
+    }
+   ],
+   "costUsd": 0.024231,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero child",
+      "x0": 0.38,
+      "y0": 0.3,
+      "x1": 0.53,
+      "y1": 0.52
+     },
+     {
+      "label": "grandmother",
+      "x0": 0.53,
+      "y0": 0.3,
+      "x1": 0.67,
+      "y1": 0.52
+     }
+    ],
+    "objects": [
+     {
+      "label": "open wardrobe",
+      "x0": 0.67,
+      "y0": 0.2,
+      "x1": 0.9,
+      "y1": 0.7
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; grandmother and hero hugging happily, wardrobe open, bedroom visible. Grandmother's spectacles are askew and shawl is present. Faces are visible and expressive.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  },
+  "p20": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; all characters and key props are present and clearly visible, everyone is laughing, warm firelight ambiance is well depicted. Middle band is not clear due to faces and props.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; all characters and key props are present and clearly visible, everyone is laughing, warm firelight ambiance is well depicted. Middle band is not clear due to faces and props."
+    }
+   ],
+   "costUsd": 0.032859,
+   "model": "gpt-image-2.5-flare",
+   "zone": "bottom",
+   "analysis": {
+    "faces": [
+     {
+      "label": "grandmother",
+      "x0": 0.14,
+      "y0": 0.26,
+      "x1": 0.29,
+      "y1": 0.48
+     },
+     {
+      "label": "hero",
+      "x0": 0.4,
+      "y0": 0.3,
+      "x1": 0.53,
+      "y1": 0.52
+     },
+     {
+      "label": "woodcutter",
+      "x0": 0.66,
+      "y0": 0.27,
+      "x1": 0.79,
+      "y1": 0.5
+     }
+    ],
+    "objects": [
+     {
+      "label": "honey cake",
+      "x0": 0.44,
+      "y0": 0.66,
+      "x1": 0.54,
+      "y1": 0.73
+     },
+     {
+      "label": "flowers in jug",
+      "x0": 0.34,
+      "y0": 0.58,
+      "x1": 0.41,
+      "y1": 0.66
+     },
+     {
+      "label": "wicker basket with checked cloth",
+      "x0": 0.74,
+      "y0": 0.66,
+      "x1": 0.82,
+      "y1": 0.73
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": true
+    },
+    "summary": "Looks very good; all characters and key props are present and clearly visible, everyone is laughing, warm firelight ambiance is well depicted. Middle band is not clear due to faces and props.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
+  }
+ }
+}
