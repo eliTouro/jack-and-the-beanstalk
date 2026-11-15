@@ -798,8 +798,7 @@
       b.addEventListener('click', () => act(b, async () => { const { url } = await api('POST', '/api/billing/checkout', { amountCents: cents }); location.href = url; }));
       fund.append(b);
     }
-    $('fund-hint').textContent = a.stripeMode === 'test' ? 'You pay on Stripe’s page. This is the sandbox: use card 4242 4242 4242 4242, any future date, any 3 digits. No real money moves.'
-      : a.stripeMode === 'mock' ? 'Local test mode: the payment is simulated and credited at once.' : '';
+    $('fund-hint').textContent = a.stripeMode === 'off' ? '' : 'You pay by card on Stripe’s secure page, then come straight back here.';
 
     // what a book costs us, next to what we charge
     const c = a.costs, host = $('costs'); host.textContent = '';
@@ -858,7 +857,7 @@
       li.append(info);
       if (r.canProcess) {
         const b = el('button', 'btn btn-egg btn-sm', 'Process refund'); b.type = 'button';
-        b.title = 'Sends the money back through Stripe. In the sandbox you can press this yourself; with real money the shop owner would.';
+        b.title = 'Sends the money back to the card it came from.';
         b.addEventListener('click', () => act(b, async () => { try { await api('POST', `/api/billing/refunds/${r.id}/process`); say('Refund processed.'); } finally { await loadAccount(); } }));
         li.append(b);
       }
