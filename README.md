@@ -11,7 +11,7 @@ Sample books made by this build (synthetic test children): [Jack and the Beansta
 | | |
 |---|---|
 | **Money** | Fund the account through Stripe Checkout (sandbox), buying credit for any number of books from 1 to 50. See the balance. $0.99 leaves the balance for every book. Ask for a refund of unspent money, then process it at Stripe. A history page lists every credit and debit, what caused it and the balance after it. |
-| **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The cost report (`/?view=costs`, linked in the footer once signed in) shows the average cost of a book next to the $0.99 price, and the cost of each of your books. It is kept off the shop pages on purpose. |
+| **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The cost report (https://beanstalk.eliweiss.me/?view=costs, signed in; not linked from the shop) shows the average cost of a book next to the $0.99 price, and the cost of each of your books. It is kept off the shop pages on purpose. |
 | **The book** | 20 pages plus About Me. One 20-page template serves both stories. A character bible and all 40 scenes are drawn ahead of time and stored in the database. |
 | **Speed** | The page is static HTML with one small stylesheet and one script. A book takes about 30 seconds from photo to PDF. A progress bar names the stage, and each thumbnail appears as its picture finishes. |
 | **Storage** | Photos, pictures, thumbnails and the finished PDF are stored in Postgres. Sign in again tomorrow and the PDF still downloads. |

@@ -135,7 +135,6 @@
   // ---------- views ----------
   function showView(name) {
     for (const v of ['out', 'shelf', 'book', 'account', 'costs']) $(`view-${v}`).hidden = v !== name;
-    $('costs-link').hidden = !state.me?.user;
     if (name === 'costs') document.title = `Cost report | ${SITE}`;
     if (name === 'out') document.title = 'A storybook starring your child';
     if (name === 'shelf') document.title = `My books | ${SITE}`;
@@ -930,7 +929,7 @@
   // ---------- init ----------
   async function init() {
     wireNewBook(); wireBook();
-    onNav($('brand')); onNav($('back-link')); onNav($('acct-back')); onNav($('costs-back')); onNav($('costs-link'));
+    onNav($('brand')); onNav($('back-link')); onNav($('acct-back')); onNav($('costs-back'));
     window.addEventListener('popstate', route);
     window.addEventListener('pagehide', () => { if (state.bookId && state.about.dirty) saveAbout(); });
 
