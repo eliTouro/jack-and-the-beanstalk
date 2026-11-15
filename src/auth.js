@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import * as store from './store.js';
 import { log } from './log.js';
+import { balance, PRICE_CENTS } from './billing.js';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -65,7 +66,8 @@ router.get('/api/me', async (req, res, next) => {
   try {
     const user = req.session?.uid ? await store.getUser(req.session.uid) : null;
     res.json({
-      user: user && { name: user.name, email: user.email, picture: user.picture },
+      user: user && { name: user.name, email: user.email, picture: user.picture, balanceCents: await balance(user.id) },
+      priceCents: PRICE_CENTS,
       signInUrl: '/auth/google',
       devLogin: DEV_LOGIN,
     });

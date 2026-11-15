@@ -27,7 +27,11 @@ services:
         value: gpt-image-2.5-flare
       - key: IMAGE_QUALITY
         value: low
-      - key: IMAGES_PER_HOUR
-        value: "30"
-      - key: IMAGES_PER_DAY
-        value: "300"
+      # Stripe, test mode only (the class sandbox key, sk_test_...). Set it in the dashboard.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      # Optional: comma-separated emails that may process anyone's refund requests.
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: PUBLIC_URL
+        value: https://beanstalk.eliweiss.me

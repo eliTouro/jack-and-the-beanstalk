@@ -134,3 +134,31 @@ Test on child-1 (`TRY_TAG=f3`), reusing the earlier reference and page 1:
 ![child-1 after the rewrite](test-results/thumbs/hw3-story-child-1.jpg)
 
 In the browser (mock images): typing a name updates all four page texts at once, the progress panel shows "All 6 pictures ready", and the PDF downloads.
+
+---
+
+# Homework 4: the 20-page book, money and the quality loop (2026-11-15)
+
+## Automated
+
+`npm test` runs 39 offline tests (no key, no database, no network; mock images, mock checks, simulated checkout). They cover: the template serving both stories, text length and name use, every prompt (style string, no story text, clear zone), the quality loop (pass first time, redraw with the reason, 3 at most, best kept, deadline), the pass rules of the picture check, the text layout (never on a face, middle when top and bottom are taken, under the art when nothing is clear, tone from brightness), the cost maths, funding credited exactly once, $0.99 per book, attempt counts per picture, every call in the cost log, owner-only pictures, the stored PDF after signing in again (21 pages), refund request and processing, and the transaction history.
+
+## Pre-made pictures
+
+`scripts/pregen.mjs` drew 13 bible pictures and 40 scenes with `gpt-image-2.5-flare` at low quality. All 53 passed the check on the first drawing. Total cost $1.14. On 37 of 40 scenes the text sits where the template planned; on 3 the layout step moved it.
+
+## Real books (`scripts/make-book.mjs`)
+
+| Run | Photo | Story | Photo to PDF | Drawings | Redraws | Cost | Sheet |
+|---|---|---|---|---|---|---|---|
+| 1 | `test-faces/child-1.jpg` | Jack and the Beanstalk | 29.3 s | 21 | 0 | $0.59 | [pages](test-results/thumbs/hw4-jack-child-1.jpg), [PDF pages](test-results/thumbs/hw4-jack-pdf-pages.jpg) |
+| 2 | `test-faces/child-2.jpg` | Little Red Riding Hood | 55.5 s | 18 (+3 template pages) | 0 | $0.33 | [pages](test-results/thumbs/hw4-red-child-2.jpg), [PDF pages](test-results/thumbs/hw4-red-pdf-pages.jpg) |
+
+- Run 1 sent the scene at 1024 px and the reference at 768 px. A one-page test at 640 px and 384 px gave the same quality for about a third less, so run 2 used those sizes.
+- Run 2 was slow because one image call (page 19) took 45 s while the others took 13 to 18 s. A backup call after 21 s was added afterwards.
+- The child is recognisably the same on every page of both books, glasses included in run 2.
+- In run 2 the layout step found no clear band on pages 12, 16 and 18 and used the framed layout (art in a frame, text under it).
+
+## Stripe sandbox, by hand
+
+Local server with the real sandbox key: paid $5.00 on Stripe's page with the test card, came back with the balance at $5.00; made a book (balance $4.01); requested and processed a refund of $4.01 (Stripe refund id returned, balance $0.00). The history showed all three rows with their causes.

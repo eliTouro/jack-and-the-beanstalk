@@ -1,36 +1,42 @@
 # To do
 
-What in this build still needs work, most important first. Evidence is in [TESTING.md](TESTING.md). The feedback items come from 10 human responses (friends and family, Google Form, Nov 3–4) and 10 AI reviews of the same sample book.
+What in this build still needs work, most important first. Evidence is in [TESTING.md](TESTING.md) and [review-log.md](review-log.md).
 
-## From the feedback on the sample book
+## Quality of the book
 
-Ratings out of 5: humans gave likeness 3.8, story 3.8 and professional 3.4. Plain AI calls rated "professional" 4.9, so humans were much harsher on the look.
+- **The picture check passes almost everything.** In two real books (39 generated pictures) and 53 pre-made pictures, every one passed on the first drawing. Either the pictures really are that reliable, or `gpt-4.1-mini` at these thresholds (likeness and scene 6 of 10) is too easy to please. Next step: feed it known-bad pictures (wrong child, hidden face, drawn text) and see what it catches; raise the thresholds if it misses them. Until then the redraw loop is proven by the offline tests and mock mode, not by a real failure.
+- **The checker's boxes are approximate.** Face boxes from the vision model can be a few percent off. The layout keeps a margin and also needs the checker's own "this band is clear" answer, but a dedicated face detector would be more exact.
+- **The framed fallback wastes space.** When no band is clear the art is framed with the text below. On pages where the template kept the bottom empty, that empty area is still inside the frame. Cropping the art to its busy part would look better.
+- **Young children can come out toddler-like.** The reference sometimes makes a four-year-old look two. The check compares likeness but not apparent age on its own.
+- **Likeness comes only from the reference.** Page calls never see the photo (it tripped the safety filter earlier), so a weak reference weakens all 20 pages. "Try a different look" redraws it and every hero page.
+- **Low image quality.** Pictures are 1024×1536 at `low` quality: fine on screen, 171 dpi in print with no bleed. `IMAGE_QUALITY=medium` costs about four times as much.
+- **No cover page.** The assignment asks for 20 pages plus About Me, so the PDF opens on page 1.
+- **Hero-less pages are identical in every book.** Little Red Riding Hood pages 8 to 10 (the wolf alone) come straight from the template. That is the cheap and fast choice, and they are still checked, but they are not personal.
 
-- ~~**The pages don't connect, and the story stops early.**~~ Done: the text now explains why, and page 4 is the beanstalk. This is the top human complaint (6 of 10). Four said "too short". Two were more specific: "add a page explaining why Mum throws out the beans" and "context is missing between pages". Fix: say why (the cow was all they had, Jack traded her for five beans) and add the beanstalk at dawn as the ending beat, as a new entry in `PAGES` with one more parallel picture.
-- ~~**"Is his name Jack or Theo?"**~~ Done: the text uses the child's name and never says he or she. (1 human, 2 AI). Use the child's name in the story text, with Jack only in the title.
-- ~~**"Milky-White" isn't clear**~~ Done. (1 human). Say "their cow, Milky-White" the first time.
-- ~~**The beans look like candy**~~ Done: speckled beans. (1 human, 1 AI). Draw speckled, earthy beans with a faint glow instead of five bright colours.
-- **"Looks AI"** (1 human, 3 AI). A softer, painterly `BOOK_STYLE` is worth an A/B test.
-- **Print quality** (AI only; no human checked it). The page art is 1024×1536, which is 171 dpi at 6×9 in (a printer wants 250–300), and there's no bleed. Fixes: render at `IMAGE_QUALITY=medium` or upscale for the PDF only, and add 0.125 in bleed.
-- **Text looks "slapped on"** (AI only). Design a proper text block per page instead of a gradient band.
+## Speed
 
-## Likeness and consistency
+- **One slow image call can still push a book close to a minute.** Typical is 30 s; one run took 55 s because a single call hung for 45 s. A backup call now starts after 21 s, but that has not yet been seen to fire in a real run.
+- **The 40-second cutoff trades retries for speed.** In a new book no fresh drawing starts after 40 s, so a page that fails late gets fewer than 3 drawings (the best so far is kept, and the count on the picture shows it). Redoing the page afterwards has no time limit.
+- **Free Render instance sleeps.** A GitHub Actions ping every 10 minutes keeps it warm, but GitHub runs scheduled jobs late at busy times. An uptime monitor or a paid instance would make the first page load reliably fast.
+- **Progress is polled** every 1.2 s rather than pushed.
 
-- **Likeness now comes only from the reference.** Page calls no longer get the photo (it triggered the safety filter on page 3; see TESTING.md), so if the reference drifts from the photo, every page drifts with it. The "Try a different look" button redraws the reference and all pages, but the UI could still stress checking Jack before reading on.
-- **A failed reference fails the book.** If Jack or the cast sheet is blocked, the pages are marked "draw Jack first" and the user has to retry. That's correct, but blunt.
-- **Story text is gendered.** "Jack and his mother" stays as written even for a girl's book. The pictures keep the child's own gender, but the text doesn't adapt.
+## Money
+
+- **Refunds are self-service in the sandbox.** The person who asks can also press "Process refund" so the flow is visible from one account. With real money only an admin should (`ADMIN_EMAILS` already supports that).
+- **No Stripe webhook.** Payments are confirmed when the browser returns, and again whenever the account page loads. A webhook would also catch a payment made by someone who never comes back to the site. The shared class key can't have a webhook endpoint registered just for this app.
+- **Redoing a page is free.** Each redo costs about 2 cents of API and nothing to the user. There is an hourly cap, but a real product would charge or limit per book.
+- **Deleting a book does not return the $0.99.** The delete dialog says so.
+- **Prices are a table in code.** `src/cost.js` holds the per-token prices; if OpenAI changes them the table has to be edited.
 
 ## Product and operations
 
-- **Generation runs inside the web process.** If Render restarts mid-book (a deploy or a crash), the unfinished pictures are marked "interrupted, try again". A real job queue would resume them.
-- **Images are stored in Postgres as bytes.** That's simple, but Neon's free plan is 0.5 GB, which is roughly 400 books. Move the images to object storage (S3 or R2) if it grows.
-- **The photo is now stored** (so pages can be redone later), and deleting a book deletes it. There's no "delete my account" yet, and no automatic expiry.
-- **No cover or title page.** The book opens straight on page 1.
-- **"Fix something" edits can't be masked.** Nothing limits an edit to one region of the page.
-- **Free Render instance cold start** of about 30–50 s after idling.
-- **Real per-image progress.** The bars are time-based estimates (from the average of recent real durations), not true progress. OpenAI's streaming partial images could show the picture forming instead.
+- **Old 4-page books are hidden.** Books made before this version used a different set of pictures and are no longer listed (they are still in the database).
+- **Generation runs inside the web process.** A deploy or crash mid-book marks unfinished pictures "interrupted, try again". A job queue would resume them.
+- **Images live in Postgres.** A book is about 6 MB with its PDF, so Neon's free 0.5 GB holds roughly 80 books. Object storage is the next step.
+- **No "delete my account".** Deleting a book deletes its photo; there is no one-click removal of everything.
+- **`/api/cartoon` and `/api/scene`** (homework 1) are still open without sign-in, limited per IP only.
 
 ## Process gaps
 
-- **No Playground pass.** Prompts were iterated by script and visual review.
-- **Only synthetic test children,** no real children's photos (deliberately, for privacy).
+- **Only synthetic test children** so far, for privacy. The grader will use a real photo.
+- **The storybook-review skill has not been run yet.** `review-log.md` starts with a self-check; the first real run goes in as soon as the skill is set up.
