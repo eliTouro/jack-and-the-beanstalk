@@ -27,8 +27,33 @@ const BOOKS_PER_HOUR = Number(process.env.BOOKS_PER_HOUR || 6);
 const REDOS_PER_HOUR = Number(process.env.REDOS_PER_HOUR || 40);
 // A new book stops starting fresh drawings this long after it began, so the whole book
 // lands inside a minute. Redoing one page later has no such limit.
-const BOOK_DEADLINE_MS = Number(process.env.BOOK_DEADLINE_MS || 36_000);
-const REFERENCE_DEADLINE_MS = Number(process.env.REFERENCE_DEADLINE_MS || 14_000);
+const BOOK_DEADLINE_MS = Number(process.env.BOOK_DEADLINE_MS || 40_000);
+const REFERENCE_DEADLINE_MS = Number(process.env.REFERENCE_DEADLINE_MS || 16_000);
+// Input pictures are sent small. The model bills input pictures by size, and a test showed
+// the same page quality from a 640 px scene and a 384 px reference at about a third less cost.
+const SCENE_INPUT_PX = Number(process.env.SCENE_INPUT_PX || 640);
+const REFERENCE_INPUT_PX = Number(process.env.REFERENCE_INPUT_PX || 384);
+// A page drawing normally takes 13-18 s. Now and then one call hangs for 40 s or more
+// and would hold the whole book up, so in a new book a call still running after this
+// long gets a second, identical call, and the first to finish is used. Both are paid for
+// and both are logged.
+const STRAGGLER_MS = Number(process.env.STRAGGLER_MS || 21_000);
+
+async function withBackup(call, onLoser) {
+  const first = call();
+  let timer;
+  const state = await Promise.race([
+    first.then(() => 'settled', () => 'settled'),
+    new Promise((r) => { timer = setTimeout(r, STRAGGLER_MS, 'slow'); }),
+  ]);
+  clearTimeout(timer);
+  if (state === 'settled') return first;
+  const second = call();
+  const winner = await Promise.any([first.then((v) => ({ v, loser: second })), second.then((v) => ({ v, loser: first }))])
+    .catch((agg) => { throw agg.errors?.[0] || agg; });
+  winner.loser.then(onLoser, () => {});
+  return winner.v;
+}
 
 // Pictures being drawn by this server process ("bookId:slot"). A slot marked
 // queued/running in the database but missing here was cut off by a restart.
@@ -102,7 +127,7 @@ async function run({ book, story, userId, todo, purpose, deadlineAt }) {
       const msg = 'Your hero must be drawn before the pages. That picture failed, so try it first.';
       await Promise.all(toDraw.map((p) => store.markFailed(bookId, p.id, msg)));
     } else {
-      const refSmall = reference ? await shrink(reference.buffer, 768) : null;
+      const refSmall = reference ? await shrink(reference.buffer, REFERENCE_INPUT_PX) : null;
       await Promise.allSettled(toDraw.map((p) => drawPage(ctx, p, { scene: scenes[p.id], reference, refSmall, deadlineAt })));
     }
   }
@@ -125,12 +150,14 @@ async function drawPage(ctx, page, { scene, reference, refSmall, deadlineAt }) {
   let make;
   if (scene && page.hero) {
     // The normal path: the template scene, with its stand-in hero swapped for this child.
-    const sceneImg = b64(scene.buffer, scene.mimeType);
-    make = (_n, feedback) => generateImage({ prompt: pagePrompt(story, page, feedback), images: [sceneImg, refSmall], size: SIZE.page });
+    const sceneImg = await shrink(scene.buffer, SCENE_INPUT_PX);
+    const once = (feedback) => generateImage({ prompt: pagePrompt(story, page, feedback), images: [sceneImg, refSmall], size: SIZE.page });
+    const logLoser = (attempt) => (img) => store.logCall({ userId: ctx.userId, bookId: ctx.bookId, slot: page.id, kind: 'image', purpose: ctx.purpose, attempt, model: img.model, usage: img.usage, costUsd: img.costUsd, ms: img.ms });
+    make = (n, feedback) => (Number.isFinite(deadlineAt) ? withBackup(() => once(feedback), logLoser(n)) : once(feedback));
   } else {
     // No pre-made scene yet: draw the page from the reference and the bible pictures.
     const cast = (await Promise.all(page.cast.map((id) => getCharacter(story.id, id)))).filter(Boolean);
-    const images = [...(page.hero ? [refSmall] : []), ...cast.map((c) => b64(c.buffer, c.mimeType))];
+    const images = [...(page.hero ? [refSmall] : []), ...(await Promise.all(cast.map((c) => shrink(c.buffer, SCENE_INPUT_PX))))];
     const fallback = images.length ? images : [refSmall].filter(Boolean);
     make = (_n, feedback) => generateImage({ prompt: pageFromScratchPrompt(story, page, feedback), images: fallback, size: SIZE.page });
   }
@@ -202,7 +229,7 @@ export async function startFix({ bookId, userId, pageId, instruction }) {
   active.add(key(bookId, pageId));
   await store.markQueued(bookId, [pageId]);
   const ctx = { bookId, userId, story, name: normalizeAbout(book.about).name, purpose: 'fix' };
-  const images = [b64(current.buffer, current.mimeType), await shrink(reference.buffer, 768)];
+  const images = [await shrink(current.buffer, SCENE_INPUT_PX), await shrink(reference.buffer, REFERENCE_INPUT_PX)];
   drawSlot(ctx, pageId, {
     kind: 'fix', page, keepPrevious: true, instruction,
     make: () => generateImage({ prompt: fixPrompt(story, page, instruction), images, size: SIZE.page }),

@@ -1,7 +1,7 @@
 {
   "name": "jack-and-the-beanstalk",
   "version": "1.0.0",
-  "description": "Upload a photo, get cartoonified, and star as Jack in two Jack and the Beanstalk scenes.",
+  "description": "Upload a photo and your child becomes the hero of a 20-page picture book: Jack and the Beanstalk or Little Red Riding Hood.",
   "type": "module",
   "main": "server.js",
   "engines": {
@@ -12,7 +12,10 @@
     "dev": "node --env-file-if-exists=.env --watch server.js",
     "try": "node --env-file-if-exists=.env scripts/try.mjs",
     "test": "node --test test/*.test.js",
-    "dev:mock": "node --env-file-if-exists=.env --env-file=mock.env --watch server.js"
+    "dev:mock": "node --env-file-if-exists=.env --env-file=mock.env --watch server.js",
+    "dev:sandbox": "node --env-file-if-exists=.env --env-file=mock.env --env-file=sandbox.env --watch server.js",
+    "pregen": "node --env-file-if-exists=.env scripts/pregen.mjs",
+    "book": "node --env-file-if-exists=.env scripts/make-book.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",

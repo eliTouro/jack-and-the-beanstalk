@@ -1,119 +1,134 @@
-# Jack and the Beanstalk: a storybook starring your child
+# A storybook starring your child
 
-**Live:** https://beanstalk.eliweiss.me · **What still needs work:** [to-do.md](to-do.md) · **Testing:** [TESTING.md](TESTING.md) · **Sample book:** [/sample.html](https://beanstalk.eliweiss.me/sample.html)
+**Live:** https://beanstalk.eliweiss.me · **What still needs work:** [to-do.md](to-do.md) · **Self-review log:** [review-log.md](review-log.md) · **Testing:** [TESTING.md](TESTING.md)
 
-Sign in with Google and upload a photo of a child. The app draws them once as Jack, keeping the child's own look and gender (a boy's photo gives a boy Jack, a girl's photo gives a girl), in a fixed 3D animated style. Then it illustrates the first pages of *Jack and the Beanstalk* with that same child on every page.
+Sign in with Google, add money to your account, upload one photo of a child and pick a story: *Jack and the Beanstalk* or *Little Red Riding Hood*. About 30 seconds later you have a 20-page illustrated book with that child as the hero on every page, plus an About Me back page, as a PDF. A book costs $0.99.
 
-- **The story text** is printed on top of each picture, and the last page is an About Me page with the details you type in. Everything downloads as one PDF.
-- **Every book is saved to your account:** the photo, every picture and the About Me text. You can close the tab while it draws, come back later, and find it under "My books".
+Sample books made by this build (synthetic test children): [Jack and the Beanstalk](samples/Theo-JackAndTheBeanstalk.pdf) · [Little Red Riding Hood](samples/Maya-LittleRedRidingHood.pdf)
 
-The finished book is meant to be 20 pages. This build makes pages 1–3 plus About Me:
+## What it does
 
-| Page | Picture | Text (printed by the PDF layer, never by the image model) |
-|---|---|---|
-| 1 | The empty cupboard: Jack and his mother in a bare kitchen, Milky-White through the door | Jack and his mother had nothing left to sell but Milky-White. |
-| 2 | The trade: the road to market, an old man holding out five coloured beans | "Five magic beans," said the old man. "For one cow." |
-| 3 | Out the window: the cottage at dusk, beans tossed into the garden | "Beans!" she cried. And out the window they went. |
-| Last | About Me: the child's portrait, name and the details the uploader typed | |
+| | |
+|---|---|
+| **Money** | Fund the account through Stripe Checkout (sandbox). See the balance. $0.99 leaves the balance for every book. Ask for a refund of unspent money, then process it at Stripe. A history page lists every credit and debit, what caused it and the balance after it. |
+| **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The account page shows the average cost of a book next to the $0.99 price. Each book shows its own cost. |
+| **The book** | 20 pages plus About Me. One 20-page template serves both stories. A character bible and all 40 scenes are drawn ahead of time and stored in the database. |
+| **Speed** | The page is static HTML with one small stylesheet and one script. A book takes about 30 seconds from photo to PDF. A progress bar names the stage, and each thumbnail appears as its picture finishes. |
+| **Storage** | Photos, pictures, thumbnails and the finished PDF are stored in Postgres. Sign in again tomorrow and the PDF still downloads. |
+| **Quality loop** | Every generated picture is checked by a vision model. A failure is drawn again with the reason, at most 3 drawings. If none passes, the best-scoring one is kept. The attempt count is shown on every picture. |
+| **Text layout** | Code decides where the words go on every page: top, bottom or middle, wherever that picture is clear of faces and story details. If nowhere is clear, the art is framed and the text goes on paper under it. |
 
-The first homework (cartoonify with settings, plus two captioned scenes) still lives at [/scenes.html](https://beanstalk.eliweiss.me/scenes.html).
-
-## How it works
+## How a book is made
 
 ```
-sign in with Google ──▶ cookie session (signed, 30 days)
-photo ──▶ POST /api/books ──▶ saved in Postgres, then drawn on the server:
-            round 1, in parallel:  reference (Jack, from the photo)  +  cast sheet (mother, cow, old man, cottage)
-            round 2, in parallel:  pages 1 to 4                     (each = reference + cast sheet)
-          each picture is saved the moment it's ready
-browser ──▶ GET /api/books/:id every 1.5 s ──▶ per-picture status, start time and expected duration ──▶ one progress bar per picture
-page + reference + "change X" ──▶ POST /api/books/:id/fix ──▶ same page, one thing changed (old version kept for Undo)
-GET /api/books/:id/pdf ──▶ pages + reference + About Me ──▶ PDF (no model call)
+ONCE, AHEAD OF TIME (scripts/pregen.mjs, 53 pictures, $1.14 in total)
+  character bible   one picture per character, plus a stand-in hero         assets/library/<story>/bible/
+  40 scenes         each drawn from the bible pictures it needs             assets/library/<story>/scenes/
+  every picture goes through the quality loop; results are in meta.json
+  the server copies bible and scenes into Postgres when it starts           tables: characters, scenes
+
+PER BOOK (src/jobs.js)
+  $0.99 leaves the balance
+  0 s    pages the hero is not on are copied from the template (instant)
+  0 s    reference: the child drawn as the hero, from the photo             1 image call + 1 check
+  13 s   every other page at the same time: the template scene is edited    17-20 image calls + checks
+         so its stand-in hero becomes this child
+  each picture: draw -> check -> redraw on failure (3 drawings at most) -> keep the best
+  each finished picture: thumbnail made, text position chosen, saved to Postgres
+  30 s   PDF built and stored
 ```
 
-A book is 6 pictures in 2 parallel rounds, about 30 s in total. Before, the pages were chained one after another and took about 60 s.
+Measured on two real runs (see TESTING.md): 30 s and 55 s from photo to PDF, at $0.33 to $0.59 of API cost per book. The 55 s run had one image call that hung; a call that runs longer than 21 s now gets a backup call.
 
-How the child stays the same child on every page:
+### The template (`src/template.js`)
 
-- **One reference image** per book, made from the photo. It's image 1 on every page call. Only the reference call sees the photo. When the real photo was also attached to page calls, the safety filter sometimes blocked a page (see TESTING.md).
-- **One cast sheet** per book: the mother (matching the child's skin tone and hair colour), Milky-White, the old man with the five speckled beans, and the cottage. It's image 2 on every page call, so recurring characters match across pages even though no page waits for another.
-- **One style string.** `BOOK_STYLE` in `src/book.js` is sent word for word in every call: "modern 3D animated feature film — rounded forms, large expressive eyes, soft rim light". A test checks this.
-- **Fixed descriptions** for Jack's outfit, the mother, the old man and Milky-White.
+Twenty rows. Each row fixes the camera framing of that page and which third of the picture must stay empty for the words. A story (`src/stories/jack.js`, `src/stories/red.js`) supplies only what happens on the page: text, scene, composition and which characters appear. Both stories are poured into the same twenty rows, so page 7 of either book is a wide shot from a low camera with the top kept clear.
 
-**The story** is four pages: the empty cupboard, the trade, the beans out the window, and the beanstalk the next morning. The text uses the child's name from the About Me page ("Jack" until it's filled in) and never says he or she, so it fits any child. It was rewritten after the first feedback round (see to-do.md).
+### The character bible (`characters` table)
 
-How the text stays readable:
+One picture per character per story, drawn once: Jack's mother, Milky-White, the old man, the giant, the giant's wife, the hen and the harp; Red's mother, Grandmother, the wolf and the woodcutter; and a stand-in hero for each story. Each scene is drawn from the bible pictures of the characters on that page, which is why the giant on page 12 is the giant on page 18. In a book, the child's reference picture replaces the stand-in hero on every page.
 
-- **The model never draws text.** Every image prompt says so, and a test checks that the story text never appears in a prompt.
-- **The PDF layer prints it.** `src/pdf.js` (pdfkit) prints it in the zone each storyboard entry keeps clear, in the embedded Andika font over a soft gradient scrim.
+### The quality loop (`src/quality.js`, `src/analyze.js`)
 
-Adding page 4 (the beanstalk at dawn) and the rest means adding entries to `PAGES` in `src/book.js`. The slots, the UI, the API and the PDF all work from that list.
+Each drawing is sent to `gpt-4.1-mini` with the scene description and the reference. It returns:
 
-## Accounts, storage and logging
+- how many times the hero appears and whether the face is visible
+- likeness to the reference, 0 to 10, and how completely the scene is shown, 0 to 10
+- whether any text was drawn, and any serious defects
+- a box around every face and every small story-critical prop
+- whether the top, middle and bottom bands are clear
 
-- **Google sign-in** (`src/auth.js`): OAuth 2.0 authorization-code flow with a `state` check; the ID token is verified with `google-auth-library`. The session is a signed `cookie-session` cookie holding only the user id. All book routes need sign-in, and pictures are only ever served to their owner.
-- **Database** (`src/db.js`, `src/store.js`): Postgres via `DATABASE_URL`, in production a free [Neon](https://neon.tech) database. It has four tables:
-  - `users`
-  - `books`: the photo and About Me
-  - `book_images`: one row per picture, with its status, the bytes and the previous version for Undo
-  - `events`
-- **Local storage:** without `DATABASE_URL`, the app uses an in-memory [PGlite](https://pglite.dev) (real Postgres in WebAssembly), so the same SQL runs locally and in the tests.
-- **Logging** (`src/log.js`): structured JSON logs with `pino` and `pino-http`, which Render shows as the service log. Photos, cookies and tokens are never logged.
-  - Every sign-in, new book, PDF, deletion and image call (with its model and duration) is also written to the `events` table.
-  - The progress bars' time estimates are the average of the last 20 real durations from that table.
-- **Cost guards:**
-  - `IMAGES_PER_HOUR` per user (default 30)
-  - `IMAGES_PER_DAY` for the whole site (default 300)
-  - `MAX_BOOKS_PER_USER` (default 30)
-  - one API call per picture, with no automatic retries
+The picture fails if the hero is missing or doubled, the face is hidden, likeness or scene is under 6, text was drawn, there is a defect, or no band is clear. A failed picture is drawn again with the list of problems added to the prompt. After 3 drawings the highest score wins. In a new book no fresh drawing starts after 40 seconds, so the book stays under a minute; redoing a single page later has no time limit.
+
+### Text never hides the story (`src/layout.js`)
+
+1. The text block is measured with the PDF engine's own font metrics, so its exact height is known.
+2. For each of top, bottom and middle, the block's rectangle is tested against every face box (with a margin) and every prop box. The band must also have been called clear by the checker.
+3. The template's zone is used if it passes. Otherwise the calmest passing band, measured from the pixels.
+4. If no band passes, the page switches to a framed layout: the art sits in a frame and the text is printed on paper below it. Nothing is covered.
+5. The brightness of the chosen band picks white text on a dark plate or dark text on a pale plate.
+
+The image model never draws text; a test checks that no story text appears in any prompt.
+
+## Money (`src/billing.js`)
+
+- **Ledger.** The balance is never stored. It is the sum of the user's rows in `transactions`, so the balance and the history can't disagree. Each row keeps the balance after it.
+- **Funding.** Stripe Checkout in test mode. After payment Stripe sends the browser to `/billing/return`; the server looks the session up at Stripe and checks the amount and the owner before crediting. A unique index makes a second credit for the same payment impossible. Payments whose redirect never arrived are picked up the next time the account page loads.
+- **$0.99 per book.** Taken when the book starts. If the book can't be made at all, it comes back automatically.
+- **Refunds.** The user picks a top-up and asks for the unspent part back. The money leaves the balance at once so it can't be spent. Processing calls Stripe's refund API and stores the refund id. In the sandbox the person who asked can also press "Process refund", so the whole flow can be seen from one account; `ADMIN_EMAILS` can process anyone's.
+- **Test mode only.** A key that doesn't start with `sk_test_` is ignored.
+
+## API cost (`src/cost.js`, `api_calls` table)
+
+Every call writes a row: user, book, picture, kind (image or analysis), attempt number, model, tokens in and out, dollars and milliseconds. Dollars come from the token counts the API returns and the price table in `src/cost.js` (`gpt-image-2.5-flare`: $5 text in, $8 image in, $30 image out per million tokens; `gpt-4.1-mini`: $0.40 in, $1.60 out). The account page sums the log: average per book, split into first drawings, redraws and checks.
+
+To keep the cost down: `low` image quality, input pictures sent at 640 px and 384 px (a test showed the same page quality for a third less), pages without the hero reuse the template scene, and redraws only happen on a failed check.
 
 ## Project layout
 
 | Path | What it is |
 |---|---|
-| `server.js` | Express app: static `public/`, book API (`/api/books*`), homework-1 API (`/api/cartoon`, `/api/scene`), `/healthz` |
-| `src/auth.js` | Google sign-in, sign-out, `/api/me`, `requireUser`, local-only dev sign-in |
-| `src/db.js`, `src/store.js` | Postgres/PGlite connection and schema; all queries |
-| `src/jobs.js` | Draws a book's pictures on the server in two parallel rounds; budget checks; fix and undo |
-| `src/log.js` | The pino logger |
-| `src/book.js` | Storyboard, `BOOK_STYLE`, character constants, the 5 picture slots, reference / cast / page / fix prompts, About Me fields |
-| `src/pdf.js` | Builds the PDF: full-bleed art, story text in its zone, About Me page |
-| `src/image.js` | The one function that calls the image model (OpenAI `images.edit`), plus mock mode |
-| `src/prompts.js` | Homework-1 prompts (cartoon settings, the plant and climb scenes) |
-| `public/index.html`, `js/book.js`, `css/book.css` | The app: sign-in, My books, the per-picture progress panel, the book editor |
-| `public/sample.html`, `public/sample/` | The sample book shown to survey participants |
-| `public/scenes.html`, `js/scenes.js` | The homework-1 UI |
-| `scripts/book.mjs` | One model call per run (reference, cast, page or fix), plus `pdf` to assemble a book |
-| `samples/JackAndTheBeanstalk.pdf` | The sample book (synthetic boy, "Theo") |
-| `test/` | Offline tests (`npm test`, no key or database needed) |
-| `TESTING.md`, `TESTING-homework1.md`, `to-do.md` | Test results and what still needs work |
-
-## Model, key and cost
-
-- Model `gpt-image-2.5-flare` at `low` quality: 5 image calls per book, about 10–15 s each. Change it with `IMAGE_MODEL` / `IMAGE_QUALITY`.
-- **Free test mode:** `IMAGE_PROVIDER=mock` (`npm run dev:mock`) skips the API and returns the input picture after a few seconds. That's enough to test sign-in, storage and the progress bars without spending anything.
-- **Secrets** come only from environment variables: `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL` and `SESSION_SECRET`. Locally they're in `.env` (git-ignored); on Render, in Environment settings. They're never in the code or the repo, and never sent to the browser.
+| `server.js` | Express app: book API, story and library API, account and billing routes, `/healthz` |
+| `src/template.js` | The 20-page template: framing and clear zone per page |
+| `src/stories/jack.js`, `red.js` | The two storyboards: characters, text, scene and composition for 20 pages |
+| `src/book.js` | Joins stories to the template; every prompt; About Me fields |
+| `src/jobs.js` | Makes a book on the server: template pages, reference, parallel pages, PDF |
+| `src/quality.js` | Draw, check, redraw: 3 drawings at most, best kept, deadline |
+| `src/analyze.js` | The picture check (vision model) and its pass rules and score |
+| `src/layout.js` | Where the text goes on each finished picture |
+| `src/pdf.js`, `src/bookpdf.js` | Builds the PDF and stores it with the book |
+| `src/library.js` | Character bible and scenes: files to database, cached reads |
+| `src/billing.js` | Ledger, Stripe Checkout, refunds, the account page data |
+| `src/cost.js` | Price table and cost maths |
+| `src/image.js` | The one function that calls the image model, plus mock mode |
+| `src/auth.js`, `src/db.js`, `src/store.js`, `src/log.js` | Google sign-in, Postgres/PGlite and schema, queries, logging |
+| `public/index.html`, `js/app.js`, `css/app.css` | The app: landing, new book, book with live progress, account and money |
+| `assets/library/` | The pre-made bible pictures, scenes and their check results |
+| `scripts/pregen.mjs` | Draws the bible and the scenes (`bible`, `scenes`, `recheck`) |
+| `scripts/make-book.mjs` | Makes one real book from a photo, timed, without touching the live site |
+| `test/` | Offline tests (`npm test`): no key, no database, no network |
+| `public/scenes.html`, `public/sample.html` | Earlier homework pages, kept as they were |
 
 ## Run locally
 
 ```bash
 npm install
 cp .env.example .env      # fill in the values
-npm run dev:mock          # free: mock images, in-memory database, "Dev sign-in" link
-npm run dev               # real images (uses credit)
-npm test                  # offline tests
+npm run dev:mock          # free: mock images, in-memory database, simulated checkout, "Dev sign-in" link
+npm run dev:sandbox       # mock images, but the real Stripe sandbox
+npm run dev               # everything real (image calls cost money; uses DATABASE_URL)
+npm test                  # 39 offline tests
+npm run book -- test-faces/child-1.jpg jack "Theo" out.pdf   # one real timed book
 ```
 
-For Google sign-in locally, add `http://localhost:3000/auth/google/callback` as a redirect URI on the OAuth client.
+In mock mode a fifth of picture checks fail on purpose, so the redraw loop and the attempt counts can be seen without spending anything.
 
 ## Deploy (Render)
 
-1. Render → **New → Blueprint** → `eliTouro/jack-and-the-beanstalk`. Render reads `render.yaml`, and every push to `main` redeploys.
-2. In Render's Environment settings, set:
-   - `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL`
-   - `SESSION_SECRET`: `render.yaml` generates one if the service comes from the Blueprint
-3. Google Cloud OAuth client (Web application):
-   - Redirect URI `https://beanstalk.eliweiss.me/auth/google/callback`.
-   - The consent screen's audience is **External** and published (**In production**), so any Gmail account can sign in.
-4. Custom domain `beanstalk.eliweiss.me` is a GoDaddy `CNAME` → `<service>.onrender.com`.
-5. Free instances sleep when idle, so the first request after a while takes about 30–50 s.
+1. Render → **New → Blueprint** → this repo. Every push to `main` redeploys.
+2. Environment: `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL` (Neon), `STRIPE_SECRET_KEY` (the `sk_test_` key), `SESSION_SECRET`, optional `ADMIN_EMAILS`.
+3. Google OAuth redirect URI: `https://beanstalk.eliweiss.me/auth/google/callback`.
+4. The tables and new columns are created at start. The bible and scenes are copied from `assets/library/` into the database at start.
+5. The free instance sleeps when idle. `.github/workflows/keep-warm.yml` pings it every 10 minutes.
+
+**Secrets** live only in environment variables: `.env` locally (git-ignored), the Render dashboard in production. The Stripe key in particular must never be committed: GitHub scans pushes for Stripe keys and Stripe revokes them.

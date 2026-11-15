@@ -21,7 +21,8 @@ const MAX_FUND = 5000;
 const PROD = process.env.NODE_ENV === 'production';
 const KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 if (KEY && !KEY.startsWith('sk_test_')) log.warn('STRIPE_SECRET_KEY is not a test key, so it is ignored: this app only runs Stripe in test mode');
-export const stripeMode = () => (KEY.startsWith('sk_test_') ? 'test' : PROD ? 'off' : 'mock');
+// STRIPE_MOCK=1 (set by mock.env) forces the simulated checkout even when a key is present.
+export const stripeMode = () => (process.env.STRIPE_MOCK === '1' && !PROD ? 'mock' : KEY.startsWith('sk_test_') ? 'test' : PROD ? 'off' : 'mock');
 
 let client;
 const stripe = () => (client ??= new Stripe(KEY, { maxNetworkRetries: 1, timeout: 20_000 }));
@@ -84,6 +85,7 @@ export async function createCheckout({ userId, amountCents, baseUrl }) {
     try {
       session = await stripe().checkout.sessions.create({
         mode: 'payment',
+        payment_method_types: ['card'],
         line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: amount, product_data: { name: 'Storybook credit', description: `Credit for picture books at ${dollars(PRICE_CENTS)} each` } } }],
         success_url: `${baseUrl}/billing/return?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/?view=account&funding=cancelled`,
