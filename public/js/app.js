@@ -134,7 +134,9 @@
 
   // ---------- views ----------
   function showView(name) {
-    for (const v of ['out', 'shelf', 'book', 'account']) $(`view-${v}`).hidden = v !== name;
+    for (const v of ['out', 'shelf', 'book', 'account', 'costs']) $(`view-${v}`).hidden = v !== name;
+    $('costs-link').hidden = !state.me?.user;
+    if (name === 'costs') document.title = `Cost report | ${SITE}`;
     if (name === 'out') document.title = 'A storybook starring your child';
     if (name === 'shelf') document.title = `My books | ${SITE}`;
     if (name === 'account') document.title = `Account and money | ${SITE}`;
@@ -157,6 +159,7 @@
     const q = new URLSearchParams(location.search);
     if (q.get('book')) enterBook(q.get('book'));
     else if (q.get('view') === 'account') enterAccount(q.get('funding'));
+    else if (q.get('view') === 'costs') enterCosts();
     else enterShelf();
   }
 
@@ -585,20 +588,6 @@
     $('need').textContent = ready ? '20 pages and About Me, one file' : b.busy ? 'Ready as soon as the pictures are' : !allDrawn ? 'Some pictures are missing' : !hasName ? "Add the child's name first" : 'Saving your changes…';
   }
 
-  function renderCost() {
-    const c = state.book.cost;
-    const host = $('book-cost');
-    host.textContent = '';
-    const total = c.totalUsd || 0;
-    const p = el('p', 'sub');
-    p.textContent = `You paid ${money(c.priceCents)}. The picture and checking calls for this book cost us ${usd(total)}.`;
-    const key = el('ul', 'key'); key.style.marginTop = '12px'; key.style.maxWidth = '26rem';
-    const row = (label, n, v) => { const li = el('li'); li.append(el('span', null, `${label} (${n})`), el('span', 'num', usd(v))); return li; };
-    key.append(row('First drawings', c.drawings, c.firstDrawingsUsd), row('Redraws after a failed check', c.retries, c.retriesUsd), row('Picture checks', c.checks, c.checksUsd));
-    host.append(p, key);
-    if (state.book.refunded) host.append(el('p', 'note', `This book could not be made, so the ${money(c.priceCents)} went back to your balance.`));
-  }
-
   function renderBook() {
     const b = state.book;
     const story = storyDef(b.story);
@@ -607,7 +596,7 @@
     document.title = `${name || story.title} | ${SITE}`;
     const drawn = b.slots.filter((s) => s.imageUrl).length;
     $('book-facts').textContent = `Created ${fmtDate(b.createdAt)}. ${drawn} of ${b.slots.length} pictures drawn.`;
-    renderStage(); renderPictures(); renderDownload(); renderCost();
+    renderStage(); renderPictures(); renderDownload();
   }
 
   // ---------- picture dialog ----------
@@ -785,27 +774,67 @@
     btn.disabled = false;
   }
 
-  function renderAccount() {
-    const a = state.account;
-    $('bal-big').textContent = money(a.balanceCents);
-    const books = Math.floor(a.balanceCents / a.priceCents);
-    $('bal-sub').textContent = books > 0 ? `Enough for ${plural(books, 'book')} at ${money(a.priceCents)} each.` : `A book costs ${money(a.priceCents)}. Add money to make one.`;
-
-    const fund = $('fund-row'); fund.textContent = '';
-    if (a.stripeMode === 'off') fund.append(el('p', 'small', 'Payments are not set up on this server yet.'));
-    else for (const cents of a.fundOptions) {
-      const b = el('button', 'btn btn-primary', `Add ${money(cents)}`); b.type = 'button';
-      b.addEventListener('click', () => act(b, async () => { const { url } = await api('POST', '/api/billing/checkout', { amountCents: cents }); location.href = url; }));
-      fund.append(b);
+  // Buy credit by the book: 1, 3, 5 or 10 at a tap, or any number with the stepper.
+  let buyQty = 5;
+  function renderBuy(a) {
+    const host = $('fund-row'); host.textContent = '';
+    if (a.stripeMode === 'off') { host.append(el('p', 'small', 'Card payments are not available right now.')); $('fund-hint').textContent = ''; return; }
+    const max = Math.max(1, Math.floor(a.maxFundCents / a.priceCents));
+    buyQty = Math.min(max, Math.max(1, buyQty));
+    const picks = el('div', 'row');
+    const stepper = el('div', 'stepper');
+    const minus = el('button', 'btn btn-ghost btn-sm', '−'); minus.type = 'button'; minus.setAttribute('aria-label', 'One book fewer');
+    const input = el('input'); input.type = 'text'; input.inputMode = 'numeric'; input.id = 'buy-qty'; input.setAttribute('aria-label', 'Number of books to buy');
+    const plus = el('button', 'btn btn-ghost btn-sm', '+'); plus.type = 'button'; plus.setAttribute('aria-label', 'One book more');
+    stepper.append(minus, input, plus);
+    const pay = el('button', 'btn btn-primary'); pay.type = 'button';
+    const paint = () => {
+      input.value = String(buyQty);
+      pay.textContent = `Pay ${money(buyQty * a.priceCents)} for ${plural(buyQty, 'book')}`;
+      minus.disabled = buyQty <= 1; plus.disabled = buyQty >= max;
+      for (const b of picks.children) b.setAttribute('aria-pressed', String(Number(b.dataset.n) === buyQty));
+    };
+    const set = (n) => { buyQty = Math.min(max, Math.max(1, Math.round(n) || 1)); paint(); };
+    for (const n of [1, 3, 5, 10].filter((x) => x <= max)) {
+      const b = el('button', 'btn btn-ghost btn-sm pick', plural(n, 'book')); b.type = 'button'; b.dataset.n = String(n);
+      b.addEventListener('click', () => set(n));
+      picks.append(b);
     }
-    $('fund-hint').textContent = a.stripeMode === 'off' ? '' : 'You pay by card on Stripe’s secure page, then come straight back here.';
+    minus.addEventListener('click', () => set(buyQty - 1));
+    plus.addEventListener('click', () => set(buyQty + 1));
+    input.addEventListener('change', () => set(Number(input.value.replace(/\D/g, ''))));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+    pay.addEventListener('click', () => act(pay, async () => { const { url } = await api('POST', '/api/billing/checkout', { amountCents: buyQty * a.priceCents }); location.href = url; }));
+    const line = el('div', 'row'); line.append(stepper, pay);
+    host.append(picks, line);
+    paint();
+    $('fund-hint').textContent = `${money(a.priceCents)} a book. You pay by card on Stripe’s secure page, then come straight back here. Unused credit can be refunded.`;
+  }
 
-    // what a book costs us, next to what we charge
-    const c = a.costs, host = $('costs'); host.textContent = '';
+  // ---------- cost report (not part of the shop) ----------
+  async function enterCosts() {
+    const view = viewToken;
+    showView('costs');
+    $('costs-card').hidden = true; $('costs-books-card').hidden = true; $('costs-loading').hidden = false;
+    showErr($('costs-err'), '');
+    try {
+      const r = await api('GET', '/api/costs');
+      if (view !== viewToken) return;
+      $('costs-loading').hidden = true; $('costs-card').hidden = false;
+      renderCosts(r);
+    } catch (e) {
+      if (view !== viewToken || e.status === 401) return;
+      $('costs-loading').hidden = true;
+      showErr($('costs-err'), e.message);
+    }
+  }
+
+  function renderCosts(c) {
+    const host = $('costs'); host.textContent = '';
     const s = c.site;
     const vs = el('div', 'vs');
-    const left = el('div'); left.append(el('b', 'num', s.averageUsd == null ? '–' : usd(s.averageUsd)), el('span', null, s.books ? `average cost to make, over ${plural(s.books, 'book')}` : 'average cost to make (no books yet)'));
-    const right = el('div'); right.append(el('b', 'num', money(c.priceCents)), el('span', null, 'what a book costs you'));
+    const left = el('div'); left.append(el('b', 'num', s.averageUsd == null ? 'No data yet' : usd(s.averageUsd)), el('span', null, s.books ? `average API cost of a book, over ${plural(s.books, 'book')}` : 'average API cost of a book'));
+    const right = el('div'); right.append(el('b', 'num', money(c.priceCents)), el('span', null, 'price of a book'));
     vs.append(left, el('i', null, 'vs'), right);
     host.append(vs);
     if (s.books) {
@@ -813,14 +842,31 @@
       const split = el('div', 'split'); split.setAttribute('role', 'img');
       split.setAttribute('aria-label', `First drawings ${usd(s.firstDrawingsUsd)}, redraws ${usd(s.retriesUsd)}, checks ${usd(s.checksUsd)}`);
       for (const v of [s.firstDrawingsUsd, s.retriesUsd, s.checksUsd]) { const i = el('i'); i.style.width = `${(v / total) * 100}%`; split.append(i); }
-      const key = el('ul', 'key');
-      const row = (label, n, v) => { const li = el('li'); li.append(el('span', null, `${label}, ${(n / s.books).toFixed(1)} a book`), el('span', 'num', `${usd(v / s.books)}`)); return li; };
-      key.append(row('First drawings', s.drawings, s.firstDrawingsUsd), row('Redraws after a failed check', s.retries, s.retriesUsd), row('Picture checks', s.checks, s.checksUsd));
+      const key = el('ul', 'key'); key.style.maxWidth = '30rem';
+      const row = (label, n, v) => { const li = el('li'); li.append(el('span', null, `${label}, ${(n / s.books).toFixed(1)} a book`), el('span', 'num', usd(v / s.books))); return li; };
+      key.append(row('Image calls: first drawings', s.drawings, s.firstDrawingsUsd), row('Image calls: redraws after a failed check', s.retries, s.retriesUsd), row('Analysis calls: picture checks', s.checks, s.checksUsd));
       const margin = c.priceCents / 100 - s.averageUsd;
-      host.append(split, key, el('p', 'small', `That leaves ${usd(Math.abs(margin))} ${margin >= 0 ? 'per book after API costs' : 'lost per book'}. Every image call, retry and check is logged with its token count; these are sums of that log.`));
-      if (c.mine.books) host.append(el('p', 'small', `Your ${plural(c.mine.books, 'book')} cost ${usd(c.mine.totalUsd)} to make in total.`));
+      host.append(split, key, el('p', 'small', `${margin >= 0 ? 'Margin' : 'Loss'} per book after API cost: ${usd(Math.abs(margin))}. Every image call, retry and analysis call is logged with its token counts; these figures are sums of that log.`));
+    } else host.append(el('p', 'sub', 'The average appears here after the first book is made.'));
+    if (c.setupUsd) host.append(el('p', 'small', `One-time cost of drawing the character bible and the 40 template scenes: ${usd(c.setupUsd)} (not counted per book).`));
+
+    const body = $('costs-books'); body.textContent = '';
+    for (const b of c.books) {
+      const tr = el('tr');
+      const name = el('td'); const a = el('a', 'link-btn', b.title); a.href = `/?book=${encodeURIComponent(b.id)}`; onNav(a); name.append(a, el('small', null, fmtDate(b.createdAt)));
+      tr.append(name, el('td', 'amt', String(b.drawings)), el('td', 'amt', String(b.retries)), el('td', 'amt', String(b.checks)), el('td', 'amt', usd(b.totalUsd)), el('td', 'amt', money(c.priceCents)));
+      body.append(tr);
     }
-    if (c.setupUsd) host.append(el('p', 'small', `Drawing the character bible and the 40 template scenes cost ${usd(c.setupUsd)} once, and is not counted per book.`));
+    $('costs-books-card').hidden = !c.books.length;
+  }
+
+  function renderAccount() {
+    const a = state.account;
+    $('bal-big').textContent = money(a.balanceCents);
+    const books = Math.floor(a.balanceCents / a.priceCents);
+    $('bal-sub').textContent = books > 0 ? `Enough for ${plural(books, 'book')} at ${money(a.priceCents)} each.` : `A book costs ${money(a.priceCents)}. Add money to make one.`;
+
+    renderBuy(a);
 
     // refunds
     const pays = $('pay-list'); pays.textContent = '';
@@ -884,7 +930,7 @@
   // ---------- init ----------
   async function init() {
     wireNewBook(); wireBook();
-    onNav($('brand')); onNav($('back-link')); onNav($('acct-back'));
+    onNav($('brand')); onNav($('back-link')); onNav($('acct-back')); onNav($('costs-back')); onNav($('costs-link'));
     window.addEventListener('popstate', route);
     window.addEventListener('pagehide', () => { if (state.bookId && state.about.dirty) saveAbout(); });
 

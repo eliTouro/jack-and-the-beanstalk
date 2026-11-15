@@ -30,3 +30,9 @@ This entry is **not** a `storybook-review` run. The skill had not been set up ye
 1. Find out whether the picture check is too lenient: 92 of 92 real pictures passed first time.
 2. The Red run was 4.5 s from the limit. A backup call for stragglers was added after this run; it needs a real run to confirm.
 3. Run the real `storybook-review` skill against the live site with a photo that was not used in development.
+
+---
+
+## Entry 0b · 2026-11-15 · bug found on the live site (no score)
+
+Not a skill run. On the live site every "Add money" button returned "Stripe could not start the payment". Cause: after the sandbox test in Entry 0, a `payment_method_types: ['card']` option was added to the checkout request and never re-tested against Stripe, which now rejects that parameter. Removed; `scripts/check-stripe.mjs` and a call through the app's own route (1, 3 and 10 books) now both return a Stripe checkout page. Lesson: re-run the real Stripe check after any change to the payment request, not only the offline tests (the simulated checkout can't catch this).

@@ -230,6 +230,8 @@ test('a book cannot be made without money', async () => {
 let paymentId;
 test('funding: checkout credits the account exactly once', async () => {
   assert.equal((await call('POST', '/api/billing/checkout', { amountCents: 5 })).status, 400);
+  assert.equal((await call('POST', '/api/billing/checkout', { amountCents: 99 * 51 })).status, 400);
+  assert.equal((await call('POST', '/api/billing/checkout', { amountCents: 99 })).status, 200, 'one book can be bought on its own');
   const { url } = await json('POST', '/api/billing/checkout', { amountCents: 500 });
   assert.match(url, /mock-pay/);
   const back = await call('GET', url);
@@ -284,10 +286,13 @@ test('every API call of the book is in the cost log', async () => {
   assert.equal(book.cost.retries, 3);
   assert.equal(book.cost.checks, 24);
   assert.ok(book.cost.totalUsd > 0);
-  const acct = await json('GET', '/api/account');
-  assert.equal(acct.costs.site.books, 1);
-  assert.ok(Math.abs(acct.costs.site.averageUsd - book.cost.totalUsd) < 1e-9);
-  assert.equal(acct.costs.priceCents, 99);
+  const costs = await json('GET', '/api/costs');
+  assert.equal(costs.site.books, 1);
+  assert.ok(Math.abs(costs.site.averageUsd - book.cost.totalUsd) < 1e-9);
+  assert.equal(costs.priceCents, 99);
+  assert.equal(costs.books[0].id, bookId);
+  assert.equal(costs.books[0].retries, 3);
+  assert.equal('costs' in (await json('GET', '/api/account')), false, 'the account page carries no cost figures');
 });
 
 test('pictures and thumbnails are served to the owner only', async () => {
@@ -359,6 +364,5 @@ test('refund: requested, then processed; only the unspent money comes back', asy
 test('deleting a book removes it but keeps its cost in the log', async () => {
   assert.equal((await call('DELETE', `/api/books/${bookId}`)).status, 204);
   assert.equal((await call('GET', `/api/books/${bookId}`)).status, 404);
-  const acct = await json('GET', '/api/account');
-  assert.equal(acct.costs.site.books, 1);
+  assert.equal((await json('GET', '/api/costs')).site.books, 1);
 });

@@ -10,8 +10,8 @@ Sample books made by this build (synthetic test children): [Jack and the Beansta
 
 | | |
 |---|---|
-| **Money** | Fund the account through Stripe Checkout (sandbox). See the balance. $0.99 leaves the balance for every book. Ask for a refund of unspent money, then process it at Stripe. A history page lists every credit and debit, what caused it and the balance after it. |
-| **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The account page shows the average cost of a book next to the $0.99 price. Each book shows its own cost. |
+| **Money** | Fund the account through Stripe Checkout (sandbox), buying credit for any number of books from 1 to 50. See the balance. $0.99 leaves the balance for every book. Ask for a refund of unspent money, then process it at Stripe. A history page lists every credit and debit, what caused it and the balance after it. |
+| **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The cost report (`/?view=costs`, linked in the footer once signed in) shows the average cost of a book next to the $0.99 price, and the cost of each of your books. It is kept off the shop pages on purpose. |
 | **The book** | 20 pages plus About Me. One 20-page template serves both stories. A character bible and all 40 scenes are drawn ahead of time and stored in the database. |
 | **Speed** | The page is static HTML with one small stylesheet and one script. A book takes about 30 seconds from photo to PDF. A progress bar names the stage, and each thumbnail appears as its picture finishes. |
 | **Storage** | Photos, pictures, thumbnails and the finished PDF are stored in Postgres. Sign in again tomorrow and the PDF still downloads. |
@@ -80,7 +80,7 @@ The image model never draws text; a test checks that no story text appears in an
 
 ## API cost (`src/cost.js`, `api_calls` table)
 
-Every call writes a row: user, book, picture, kind (image or analysis), attempt number, model, tokens in and out, dollars and milliseconds. Dollars come from the token counts the API returns and the price table in `src/cost.js` (`gpt-image-2.5-flare`: $5 text in, $8 image in, $30 image out per million tokens; `gpt-4.1-mini`: $0.40 in, $1.60 out). The account page sums the log: average per book, split into first drawings, redraws and checks.
+Every call writes a row: user, book, picture, kind (image or analysis), attempt number, model, tokens in and out, dollars and milliseconds. Dollars come from the token counts the API returns and the price table in `src/cost.js` (`gpt-image-2.5-flare`: $5 text in, $8 image in, $30 image out per million tokens; `gpt-4.1-mini`: $0.40 in, $1.60 out). The cost report page sums the log: average per book, split into first drawings, redraws and checks.
 
 To keep the cost down: `low` image quality, input pictures sent at 640 px and 384 px (a test showed the same page quality for a third less), pages without the hero reuse the template scene, and redraws only happen on a failed check.
 
@@ -106,6 +106,7 @@ To keep the cost down: `low` image quality, input pictures sent at 640 px and 38
 | `assets/library/` | The pre-made bible pictures, scenes and their check results |
 | `scripts/pregen.mjs` | Draws the bible and the scenes (`bible`, `scenes`, `recheck`) |
 | `scripts/make-book.mjs` | Makes one real book from a photo, timed, without touching the live site |
+| `scripts/check-stripe.mjs`, `check-live.mjs` | Ask Stripe to start a test checkout the way the site does; wait for a deploy and print the live health check |
 | `test/` | Offline tests (`npm test`): no key, no database, no network |
 | `public/scenes.html`, `public/sample.html` | Earlier homework pages, kept as they were |
 

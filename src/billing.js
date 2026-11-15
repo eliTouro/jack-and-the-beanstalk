@@ -14,9 +14,9 @@ import { HttpError } from './image.js';
 import { log } from './log.js';
 
 export const PRICE_CENTS = 99;
-export const FUND_OPTIONS = [500, 1000, 2000];
-const MIN_FUND = 100;
-const MAX_FUND = 5000;
+// Credit is bought by the book: any whole number of books, up to MAX_FUND.
+const MIN_FUND = PRICE_CENTS;
+const MAX_FUND = 50 * PRICE_CENTS;
 
 const PROD = process.env.NODE_ENV === 'production';
 const KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
@@ -72,7 +72,7 @@ export async function refundBook(userId, bookId, why) {
 export async function createCheckout({ userId, amountCents, baseUrl }) {
   const amount = Math.round(Number(amountCents));
   if (!Number.isFinite(amount) || amount < MIN_FUND || amount > MAX_FUND) {
-    throw new HttpError(400, `Choose an amount between ${dollars(MIN_FUND)} and ${dollars(MAX_FUND)}.`);
+    throw new HttpError(400, `Choose between 1 and ${MAX_FUND / PRICE_CENTS} books.`);
   }
   const mode = stripeMode();
   if (mode === 'off') throw new HttpError(503, 'Payments are not set up on this server yet.');
@@ -85,15 +85,14 @@ export async function createCheckout({ userId, amountCents, baseUrl }) {
     try {
       session = await stripe().checkout.sessions.create({
         mode: 'payment',
-        payment_method_types: ['card'],
-        line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: amount, product_data: { name: 'Storybook credit', description: `Credit for picture books at ${dollars(PRICE_CENTS)} each` } } }],
+        line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: amount, product_data: { name: amount % PRICE_CENTS === 0 ? `Picture book credit: ${amount / PRICE_CENTS} ${amount === PRICE_CENTS ? 'book' : 'books'}` : 'Picture book credit', description: `${dollars(PRICE_CENTS)} a book` } } }],
         success_url: `${baseUrl}/billing/return?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/?view=account&funding=cancelled`,
         client_reference_id: String(userId),
         metadata: { app: 'beanstalk', user_id: String(userId) },
       });
     } catch (err) {
-      log.error({ type: err?.type, message: err?.message }, 'stripe checkout failed');
+      log.error({ type: err?.type, code: err?.code, status: err?.statusCode, message: err?.message }, 'stripe checkout failed');
       throw new HttpError(502, 'Stripe could not start the payment. Please try again.');
     }
     sessionId = session.id;
@@ -224,7 +223,7 @@ export async function accountJson(user) {
   return {
     balanceCents: cents,
     priceCents: PRICE_CENTS,
-    fundOptions: FUND_OPTIONS,
+    maxFundCents: MAX_FUND,
     stripeMode: mode,
     isAdmin: isAdmin(user),
     transactions: txs.map((t) => ({

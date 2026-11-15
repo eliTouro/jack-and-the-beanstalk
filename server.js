@@ -50,10 +50,10 @@ app.use(cookieSession({
 }));
 app.use(express.json({ limit: '12mb' }));
 app.use(compression());
-// Pages always revalidate (a 304 is quick); scripts, styles and pictures are reused for
-// five minutes and refreshed in the background after that.
+// Pages, scripts and styles always revalidate (a 304 is quick), so nobody is left on an
+// old version after a deploy. Pictures and fonts are reused for a day.
 app.use(express.static(fileURLToPath(new URL('./public', import.meta.url)), {
-  setHeaders: (res, path) => res.set('Cache-Control', path.endsWith('.html') ? 'no-cache' : 'public, max-age=300, stale-while-revalidate=86400'),
+  setHeaders: (res, path) => res.set('Cache-Control', /\.(html|js|css)$/.test(path) ? 'no-cache' : 'public, max-age=86400'),
 }));
 app.use(authRouter);
 
@@ -385,18 +385,28 @@ app.get('/api/books/:id/pdf', requireUser, async (req, res) => {
 // --- Account and money ----------------------------------------------------------------
 const baseUrl = (req) => process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
 
-// Balance, every credit and debit, refunds, and what books cost us to make.
+// Balance, every credit and debit, and refunds.
 app.get('/api/account', requireUser, async (req, res) => {
-  const user = await store.getUser(req.userId);
-  const [account, site, mine, setupUsd] = await Promise.all([
-    billing.accountJson(user), store.costSummary(), store.costSummary({ userId: req.userId }), library.libraryCost(),
+  res.json(await billing.accountJson(await store.getUser(req.userId)));
+});
+
+// The cost report: what books cost to make (from the API call log), next to the price.
+app.get('/api/costs', requireUser, async (req, res) => {
+  const [site, mine, setupUsd, books] = await Promise.all([
+    store.costSummary(), store.costSummary({ userId: req.userId }), library.libraryCost(), store.bookCosts(req.userId),
   ]);
   const shape = (c) => ({
     books: c.books, totalUsd: c.total, averageUsd: c.books ? c.total / c.books : null,
     firstDrawingsUsd: c.first_drawings, retriesUsd: c.retries, checksUsd: c.checks,
     drawings: c.n_first, retries: c.n_retries, checks: c.n_checks,
   });
-  res.json({ ...account, costs: { priceCents: billing.PRICE_CENTS, site: shape(site), mine: shape(mine), setupUsd } });
+  res.json({
+    priceCents: billing.PRICE_CENTS, site: shape(site), mine: shape(mine), setupUsd,
+    books: books.map((b) => ({
+      id: b.id, title: `${normalizeAbout(b.about).name || 'Untitled'} in ${storyOf(b.story).title}`, createdAt: msOf(b.created_at),
+      totalUsd: b.total, drawings: b.n_first, retries: b.n_retries, checks: b.n_checks,
+    })),
+  });
 });
 
 app.post('/api/billing/checkout', requireUser, async (req, res) => {

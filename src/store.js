@@ -59,6 +59,8 @@ export async function estimateMs() {
   return value;
 }
 
+export const TEMPLATE_VERSION = 2; // 20-page template; version 1 was the 4-page book
+
 // ---- API cost log -------------------------------------------------------------------
 // One row per paid API call: every drawing, every retry, every picture check.
 export async function logCall({ userId = null, bookId = null, slot = null, kind, purpose, attempt = 1, model = null, usage = null, costUsd = 0, ms = null, ok = true }) {
@@ -93,13 +95,22 @@ export async function costSummary({ userId = null } = {}) {
   return row;
 }
 
+// What each of one user's books cost to make, newest first.
+export async function bookCosts(userId) {
+  return query(
+    `select b.id, b.story, b.about, b.created_at, ${COST_COLUMNS}
+     from books b join api_calls c on c.book_id = b.id
+     where b.user_id = $1 and b.template = $2 group by b.id order by b.created_at desc limit 100`,
+    [userId, TEMPLATE_VERSION],
+  );
+}
+
 export async function bookCost(bookId) {
   const [row] = await query(`select ${COST_COLUMNS} from api_calls where book_id = $1`, [bookId]);
   return row;
 }
 
 // ---- books -----------------------------------------------------------------------
-export const TEMPLATE_VERSION = 2; // 20-page template; version 1 was the 4-page book
 
 export async function createBook(userId, photo, { story, about }) {
   const id = randomUUID();

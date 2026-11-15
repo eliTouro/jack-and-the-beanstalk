@@ -168,11 +168,6 @@
             <p class="small" style="margin-top:8px"><span id="save-status" role="status" aria-live="polite"></span> <button type="button" id="save-retry" class="link-btn" hidden>Try saving again</button></p>
           </section>
 
-          <section class="card" aria-labelledby="h-cost">
-            <h2 id="h-cost">What this book cost to make</h2>
-            <div id="book-cost"></div>
-          </section>
-
           <p style="margin:24px 0"><button type="button" id="delete-btn" class="link-btn link-danger">Delete this book</button></p>
         </div>
       </div>
@@ -190,17 +185,14 @@
       <div id="acct-err" class="err" role="alert" hidden><p></p></div>
       <p id="acct-loading" class="sub" style="margin:24px 0">Loading your account…</p>
       <div id="acct-body" hidden>
-        <div class="money" style="margin-top:24px">
+        <div style="margin-top:24px">
           <section class="card" aria-labelledby="h-bal">
             <h2 id="h-bal">Balance</h2>
             <p id="bal-big" class="balance-big num"></p>
             <p id="bal-sub" class="sub"></p>
-            <div id="fund-row" class="fund-row"></div>
+            <h3 class="buy-title">Buy books</h3>
+            <div id="fund-row" class="buy"></div>
             <p id="fund-hint" class="small" style="margin-top:12px"></p>
-          </section>
-          <section class="card" aria-labelledby="h-costs">
-            <h2 id="h-costs">What a book costs us</h2>
-            <div id="costs"></div>
           </section>
         </div>
         <section class="card" aria-labelledby="h-refund">
@@ -221,6 +213,31 @@
           <p id="tx-empty" class="sub" hidden>Nothing yet. Add money to make your first book.</p>
         </section>
       </div>
+    </div>
+
+    <!-- cost report: for the people running the site, not part of the shop -->
+    <div id="view-costs" class="wrap" hidden>
+      <div class="book-top">
+        <div>
+          <a id="costs-back" class="back" href="/"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>My books</a>
+          <h1>Cost report</h1>
+        </div>
+      </div>
+      <div id="costs-err" class="err" role="alert" hidden><p></p></div>
+      <p id="costs-loading" class="sub" style="margin:24px 0">Loading the report…</p>
+      <section id="costs-card" class="card" aria-labelledby="h-costs" hidden>
+        <h2 id="h-costs">Cost to make a book, next to its price</h2>
+        <div id="costs"></div>
+      </section>
+      <section id="costs-books-card" class="card" aria-labelledby="h-costs-books" hidden>
+        <h2 id="h-costs-books">Your books</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Book</th><th scope="col" class="amt">Drawings</th><th scope="col" class="amt">Redraws</th><th scope="col" class="amt">Checks</th><th scope="col" class="amt">Cost</th><th scope="col" class="amt">Price</th></tr></thead>
+            <tbody id="costs-books"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -253,6 +270,7 @@
     <div class="wrap foot-row">
       <span>Payments are handled securely by Stripe.</span>
       <a href="/privacy.html">Privacy policy</a>
+      <a id="costs-link" href="/?view=costs" hidden>Cost report</a>
       <a href="/scenes.html">The original two-scene version</a>
     </div>
   </footer>
