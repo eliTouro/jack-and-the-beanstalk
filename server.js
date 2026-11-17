@@ -11,6 +11,8 @@ import { buildAndStorePdf } from './src/bookpdf.js';
 import { MAX_ATTEMPTS } from './src/quality.js';
 import * as library from './src/library.js';
 import * as billing from './src/billing.js';
+import * as printing from './src/print.js';
+import { checkAbout } from './src/moderation.js';
 import { router as authRouter, requireUser } from './src/auth.js';
 import * as store from './src/store.js';
 import * as jobs from './src/jobs.js';
@@ -89,6 +91,7 @@ app.get('/healthz', (_req, res) => res.json({
   googleConfigured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
   database: process.env.DATABASE_URL ? 'postgres' : 'memory',
   payments: billing.stripeMode(),
+  printer: printing.printerMode(),
 }));
 
 // The menus the UI renders, so the server stays the single source of truth.
@@ -224,6 +227,7 @@ async function bookJson(row) {
     query(`select ms from events where book_id = $1 and kind = 'book.done' order by id desc limit 1`, [row.id]),
   ]);
   const story = storyOf(row.story);
+  if (await store.ensureSlots(row.id, rows.map((r) => r.slot))) return bookJson(row);
   const bySlot = Object.fromEntries(rows.map((r) => [r.slot, r]));
   const slots = await Promise.all(SLOTS.map(async (def) => {
     const r = bySlot[def.id] || { status: 'empty' };
@@ -253,6 +257,9 @@ async function bookJson(row) {
   const about = normalizeAbout(row.about);
   const busy = slots.some((s) => s.status === 'queued' || s.status === 'running');
   const pdfReady = !busy && Boolean(about.name) && slots.every((s) => s.imageUrl);
+  // The proof approval is tied to exactly what would be printed.
+  const fingerprint = printing.bookFingerprint(rows, about, story.id);
+  const orders = await query('select * from print_orders where book_id = $1 and user_id = $2 and status <> $3 order by id desc', [row.id, row.user_id, 'awaiting_payment']);
   return {
     id: row.id, story: story.id, storyTitle: story.title, about, createdAt: msOf(row.created_at), updatedAt: msOf(row.updated_at),
     photoUrl: `/api/books/${row.id}/images/photo`,
@@ -260,10 +267,24 @@ async function bookJson(row) {
     stage: { ...stageOf(slots, { name: about.name, story, pdfReady }), steps: STAGES },
     madeInMs: made?.ms ?? null,
     refunded: Boolean(row.refunded),
+    approval: { approved: pdfReady && row.approved_hash === fingerprint, approvedAt: msOf(row.approved_at), stale: Boolean(row.approved_hash) && row.approved_hash !== fingerprint },
+    orders: orders.map(printing.orderJson),
     cost: { totalUsd: cost.total, firstDrawingsUsd: cost.first_drawings, retriesUsd: cost.retries, checksUsd: cost.checks, drawings: cost.n_first, retries: cost.n_retries, checks: cost.n_checks, priceCents: billing.PRICE_CENTS },
     now: Date.now(),
     slots,
   };
+}
+
+// Nothing inappropriate gets printed: the name must be a real-sounding name, and the
+// About Me details must be fit for a children's book (src/moderation.js).
+function fieldError(fields) {
+  const err = new HttpError(422, Object.values(fields)[0]);
+  err.fields = fields;
+  return err;
+}
+async function assertPrintable(about) {
+  const check = await checkAbout(about);
+  if (!check.ok) throw fieldError(check.errors);
 }
 
 async function ownBook(req) {
@@ -276,7 +297,8 @@ async function ownBook(req) {
 app.get('/api/books', requireUser, async (req, res) => {
   const rows = await store.listBooks(req.userId);
   const thumb = (r) =>
-    r.page1_v != null ? `/api/books/${r.id}/images/p01?size=thumb&v=${r.page1_v}`
+    r.cover_v != null ? `/api/books/${r.id}/images/cover?size=thumb&v=${r.cover_v}`
+    : r.page1_v != null ? `/api/books/${r.id}/images/p01?size=thumb&v=${r.page1_v}`
     : r.ref_v != null ? `/api/books/${r.id}/images/reference?size=thumb&v=${r.ref_v}`
     : null;
   res.json({
@@ -295,6 +317,7 @@ app.post('/api/books', requireUser, async (req, res) => {
   if (!Object.hasOwn(STORIES, storyId)) throw new HttpError(400, 'Choose a story.');
   const about = normalizeAbout(req.body?.about);
   if (!about.name) throw new HttpError(400, "Add the child's name: it is printed in the story.");
+  await assertPrintable(about);
   if ((await store.countBooks(req.userId)) >= MAX_BOOKS) {
     throw new HttpError(429, `You have ${MAX_BOOKS} books, which is the limit. Delete one to make another.`);
   }
@@ -345,6 +368,8 @@ app.post('/api/books/:id/undo', requireUser, async (req, res) => {
 app.patch('/api/books/:id', requireUser, async (req, res) => {
   const row = await ownBook(req);
   const about = normalizeAbout(req.body?.about);
+  if (!about.name) throw fieldError({ name: "Add the child's name: it is printed in the story." });
+  await assertPrintable(about);
   await store.saveAbout(row.id, about);
   res.json({ book: await bookJson({ ...row, about }) });
 });
@@ -378,12 +403,78 @@ app.get('/api/books/:id/pdf', requireUser, async (req, res) => {
   const story = storyOf(row.story);
   const file = `${about.name.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-') || 'My'}-${story.title.replace(/[^A-Za-z]/g, '')}.pdf`;
   await store.logEvent({ userId: req.userId, bookId: row.id, kind: 'book.pdf' });
-  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${file}"`, 'Cache-Control': 'private, no-cache' });
+  const disposition = req.query.view === '1' ? 'inline' : 'attachment';
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `${disposition}; filename="${file}"`, 'Cache-Control': 'private, no-cache' });
   res.send(pdf);
 });
 
-// --- Account and money ----------------------------------------------------------------
+// --- Printed copies ---------------------------------------------------------------------
 const baseUrl = (req) => process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+
+app.get('/api/print/options', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({
+    priceCents: printing.PRINT_PRICE_CENTS,
+    product: 'Hardcover, 6 × 9 in, full colour, 24 pages',
+    shipping: printing.SHIPPING,
+    states: printing.US_STATES,
+  });
+});
+
+// The family has looked through the proof and approves it for printing.
+app.post('/api/books/:id/approve', requireUser, async (req, res) => {
+  const row = await ownBook(req);
+  const book = await bookJson(row);
+  if (!book.pdfReady) throw new HttpError(400, 'Finish the book first: every picture drawn and the child’s name filled in.');
+  await assertPrintable(book.about);
+  const rows = await store.getSlots(row.id);
+  await store.setApproval(row.id, printing.bookFingerprint(rows, book.about, row.story));
+  await store.logEvent({ userId: req.userId, bookId: row.id, kind: 'book.approve' });
+  res.json({ book: await bookJson(await ownBook(req)) });
+});
+
+app.delete('/api/books/:id/approve', requireUser, async (req, res) => {
+  const row = await ownBook(req);
+  await store.setApproval(row.id, null);
+  res.json({ book: await bookJson(await ownBook(req)) });
+});
+
+// Address and shipping in; a Stripe payment page out. Nothing goes to the printer until
+// Stripe confirms the payment.
+app.post('/api/books/:id/print-order', requireUser, async (req, res) => {
+  const row = await ownBook(req);
+  const book = await bookJson(row);
+  if (!book.approval.approved) throw new HttpError(409, book.approval.stale ? 'The book changed after you approved it. Please look through the proof and approve it again.' : 'Please look through the proof and approve it first.');
+  await assertPrintable(book.about);
+  const { address, errors } = printing.normalizeAddress(req.body?.address);
+  if (Object.keys(errors).length) throw fieldError(errors);
+  const level = req.body?.shippingLevel;
+  if (!printing.SHIPPING_BY_LEVEL[level]) throw new HttpError(400, 'Choose a shipping speed.');
+  const story = storyOf(row.story);
+  const rows = await store.getSlots(row.id);
+  const order = await printing.createOrder({ userId: req.userId, book: row, about: book.about, story, address, level, fingerprint: printing.bookFingerprint(rows, book.about, row.story) });
+  await store.logEvent({ userId: req.userId, bookId: row.id, kind: 'print.checkout', detail: { orderId: order.id, level } });
+  res.json(await billing.createPrintCheckout({ userId: req.userId, order, bookId: row.id, baseUrl: baseUrl(req) }));
+});
+
+app.get('/api/orders', requireUser, async (req, res) => {
+  const rows = await printing.listOrders(req.userId);
+  const fresh = await Promise.all(rows.map((o) => printing.refreshOrder(o, { onFail: billing.refundPrintOrder })));
+  res.json({ orders: fresh.map(printing.orderJson) });
+});
+
+// The printer downloads the print files from here. The token in the link is the key.
+app.get('/print-files/:id/:token/:file', async (req, res) => {
+  const which = req.params.file.replace(/\.pdf$/, '');
+  const pdf = await printing.printFile(req.params.id, req.params.token, which);
+  if (!pdf) return res.status(404).end();
+  res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store', 'Content-Disposition': `inline; filename="${which}.pdf"` });
+  res.send(pdf);
+});
+
+billing.setPrintPaidHandler((orderId) => printing.submitOrder(orderId, { baseUrl: process.env.PUBLIC_URL || `http://localhost:${PORT}`, onFail: billing.refundPrintOrder }));
+
+// --- Account and money ----------------------------------------------------------------
 
 // Balance, every credit and debit, and refunds.
 app.get('/api/account', requireUser, async (req, res) => {
@@ -392,8 +483,9 @@ app.get('/api/account', requireUser, async (req, res) => {
 
 // The cost report: what books cost to make (from the API call log), next to the price.
 app.get('/api/costs', requireUser, async (req, res) => {
-  const [site, mine, setupUsd, books] = await Promise.all([
+  const [site, mine, setupUsd, books, orders] = await Promise.all([
     store.costSummary(), store.costSummary({ userId: req.userId }), library.libraryCost(), store.bookCosts(req.userId),
+    query(`select id, title, status, total_cents, print_cost_usd, shipping_level, provider, created_at from print_orders where user_id = $1 and status <> 'awaiting_payment' order by id desc limit 50`, [req.userId]),
   ]);
   const shape = (c) => ({
     books: c.books, totalUsd: c.total, averageUsd: c.books ? c.total / c.books : null,
@@ -406,6 +498,8 @@ app.get('/api/costs', requireUser, async (req, res) => {
       id: b.id, title: `${normalizeAbout(b.about).name || 'Untitled'} in ${storyOf(b.story).title}`, createdAt: msOf(b.created_at),
       totalUsd: b.total, drawings: b.n_first, retries: b.n_retries, checks: b.n_checks,
     })),
+    print: { priceCents: printing.PRINT_PRICE_CENTS, shipping: printing.SHIPPING, printer: printing.printerMode() },
+    orders: orders.map((o) => ({ id: o.id, title: o.title, status: o.status, totalCents: o.total_cents, printCostUsd: o.print_cost_usd == null ? null : Number(o.print_cost_usd), shippingLevel: o.shipping_level, provider: o.provider, createdAt: msOf(o.created_at) })),
   });
 });
 
@@ -414,16 +508,22 @@ app.post('/api/billing/checkout', requireUser, async (req, res) => {
 });
 
 // Stripe sends the browser back here after a payment. The session is checked with Stripe before any credit.
+async function afterPayment(res, result) {
+  if (result.purpose === 'print') {
+    const order = result.orderId ? await printing.getOrder(result.orderId) : null;
+    return res.redirect(order?.book_id ? `/?book=${encodeURIComponent(order.book_id)}&order=${result.status === 'paid' ? 'placed' : result.status}` : '/?view=account');
+  }
+  res.redirect(`/?view=account&funding=${result.status}`);
+}
 app.get('/billing/return', async (req, res) => {
-  const status = typeof req.query.session_id === 'string' ? await billing.confirmSession(req.query.session_id) : 'unknown';
-  res.redirect(`/?view=account&funding=${status}`);
+  const result = typeof req.query.session_id === 'string' ? await billing.confirmSession(req.query.session_id) : { status: 'unknown' };
+  await afterPayment(res, result);
 });
 
 // Local and test runs without a Stripe key: a stand-in for Stripe's payment page.
 app.get('/billing/mock-pay', async (req, res) => {
   if (billing.stripeMode() !== 'mock') return res.status(404).end();
-  const status = await billing.confirmSession(String(req.query.session_id || ''), { mockPaid: true });
-  res.redirect(`/?view=account&funding=${status}`);
+  await afterPayment(res, await billing.confirmSession(String(req.query.session_id || ''), { mockPaid: true }));
 });
 
 app.post('/api/billing/refunds', requireUser, async (req, res) => {
@@ -440,7 +540,7 @@ app.use((err, _req, res, _next) => {
   const status = err.status || err.statusCode || 500;
   if (status >= 500 && !(err instanceof HttpError)) log.error({ err }, 'unhandled error');
   const message = err instanceof HttpError ? err.message : status === 413 ? 'That upload is too large.' : 'Something went wrong on the server.';
-  res.status(status).json({ error: message });
+  res.status(status).json({ error: message, ...(err.fields ? { fields: err.fields } : {}) });
 });
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

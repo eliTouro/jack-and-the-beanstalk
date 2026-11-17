@@ -162,3 +162,13 @@ In the browser (mock images): typing a name updates all four page texts at once,
 ## Stripe sandbox, by hand
 
 Local server with the real sandbox key: paid $5.00 on Stripe's page with the test card, came back with the balance at $5.00; made a book (balance $4.01); requested and processed a refund of $4.01 (Stripe refund id returned, balance $0.00). The history showed all three rows with their causes.
+
+---
+
+# Homework 5: print and ship (2026-11-17)
+
+`npm test`: 47 offline tests. New ones cover the cover slot, the name and About Me checks (rules layer), the print interior (24 pages, 6.25 × 9.25 in) and case-wrap cover (1008 × 774 pt), approval voided by a change, field-by-field address errors, a paid order sent to the (simulated) printer with its ledger lines and secret file links, and an automatic refund when the print files can't be built.
+
+Real run: `scripts/make-book.mjs test-faces/child-2.jpg red Maya` made a 24-page book in 31 s for $0.34 of API calls, the cover included. [Pages](test-results/thumbs/hw5-red-pdf-pages.jpg), [contact sheet](test-results/thumbs/hw5-red-sheet.jpg), [PDF](samples/Maya-LittleRedRidingHood.pdf).
+
+A Jack and the Beanstalk run started at the same time hit the OpenAI rate limit (four pages failed); a rerun failed because the account ran out of credit.

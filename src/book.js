@@ -10,7 +10,7 @@
 //     composition, and so the clear space for the text, comes from the template.
 //   - The model never draws text. Page text is printed by the PDF layer (src/pdf.js)
 //     where src/layout.js found the picture to be clear.
-import { TEMPLATE } from './template.js';
+import { TEMPLATE, COVER } from './template.js';
 import jack from './stories/jack.js';
 import red from './stories/red.js';
 
@@ -39,7 +39,11 @@ function buildStory(src) {
     for (const id of p.cast) if (!characters[id]) throw new Error(`${src.id} page ${i + 1}: unknown character "${id}"`);
     return { ...TEMPLATE[i], ...p, hero: p.hero !== false };
   });
-  return { ...src, characters: src.characters, characterById: characters, pages, pageById: Object.fromEntries(pages.map((p) => [p.id, p])) };
+  if (!src.cover) throw new Error(`${src.id}: a story needs a cover`);
+  for (const id of src.cover.cast) if (!characters[id]) throw new Error(`${src.id} cover: unknown character "${id}"`);
+  const cover = { ...COVER, ...src.cover, hero: true, text: `${src.title}, starring {name}` };
+  const pageById = Object.fromEntries([cover, ...pages].map((p) => [p.id, p]));
+  return { ...src, characters: src.characters, characterById: characters, pages, cover, pageById };
 }
 
 export const STORIES = { jack: buildStory(jack), red: buildStory(red) };
@@ -47,16 +51,21 @@ export const STORY_IDS = Object.keys(STORIES);
 export const DEFAULT_STORY = 'jack';
 export const storyOf = (id) => STORIES[id] || STORIES[DEFAULT_STORY];
 
-// Every picture in a book: the child's reference first, then the 20 pages. The slot
-// ids are the same for both stories because both use the same template.
+// Every picture in a book: the child's reference first, then the front cover and the 20
+// pages. The slot ids are the same for both stories because both use the same template.
 export const PAGE_IDS = TEMPLATE.map((t) => t.id);
+// Everything drawn from a template scene: the cover and the pages.
+export const SCENE_IDS = [COVER.id, ...PAGE_IDS];
 export const SLOTS = [
   { id: 'reference', label: 'Your hero', kind: 'reference' },
+  { id: COVER.id, label: 'Front cover', kind: 'page' },
   ...TEMPLATE.map((t) => ({ id: t.id, label: `Page ${t.number}`, kind: 'page' })),
 ];
 export const SLOT_BY_ID = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
 
 // The page text for one book: {name} becomes the child's name.
+const where = (page) => (page.number === 0 ? 'the front cover' : `page ${page.number}`);
+
 export function pageText(page, name, story) {
   return page.text.replaceAll('{name}', (name || '').trim() || story?.heroRole || 'Jack');
 }
@@ -92,7 +101,7 @@ export function scenePrompt(story, page, feedback) {
   for (const id of page.cast) names.push(story.characterById[id].name);
   const key = names.map((n, i) => `Image ${i + 1} is the character design for ${n}.`).join(' ');
   return [
-    `Illustrate page ${page.number} of a children's picture book of "${story.title}" as one full-page portrait picture.`,
+    `Illustrate ${where(page)} of a children's picture book of "${story.title}" as one full-page portrait picture.`,
     key,
     names.length ? 'Every character from those images must look exactly like their design: same face, hair, colours and clothes. Do not copy the plain backgrounds or poses of the designs: this page is a full scene.' : '',
     page.hero ? `The hero wears the same outfit on every page. ${story.heroOutfit}` : 'The hero of the book is not in this picture.',
@@ -124,7 +133,7 @@ export function referencePrompt(story, feedback) {
 // Images: 1 = the pre-made scene from the template, 2 = this book's hero reference.
 export function pagePrompt(story, page, feedback) {
   return [
-    `Image 1 is page ${page.number} of a children's picture book of "${story.title}". Image 2 is the character reference for the hero of this copy of the book.`,
+    `Image 1 is ${where(page)} of a children's picture book of "${story.title}". Image 2 is the character reference for the hero of this copy of the book.`,
     'Redraw image 1 with one change: the child hero in image 1 becomes the child in image 2.',
     'The hero keeps the pose, position, size and outfit from image 1, but takes the face, hair, skin tone, age and gender presentation from image 2.',
     CHILD_IDENTITY,
@@ -146,7 +155,7 @@ export function pageFromScratchPrompt(story, page, feedback) {
 // Edit prompt: same page, one thing changed. Images: 1 = the page, 2 = hero reference.
 export function fixPrompt(story, page, instruction) {
   return [
-    `Image 1 is a finished page (page ${page.number}) of a children's picture book of "${story.title}". Image 2 is the character reference for the hero.`,
+    `Image 1 is a finished picture (${where(page)}) of a children's picture book of "${story.title}". Image 2 is the character reference for the hero.`,
     `Make only this change to image 1: ${instruction}`,
     "Keep everything else exactly the same: the composition, camera angle, lighting, colors, the other characters, and the hero's face, hair and clothes (which must match image 2).",
     `Keep the text space clear. ${page.keepClear}`,

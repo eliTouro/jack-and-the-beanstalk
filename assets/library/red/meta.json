@@ -1225,6 +1225,60 @@
     "likeness": 10,
     "sceneMatch": 9
    }
+  },
+  "cover": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; hero and wolf faces visible, basket present, scene matches description well. Middle and bottom bands have faces and objects, so not clear for text.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; hero and wolf faces visible, basket present, scene matches description well. Middle and bottom bands have faces and objects, so not clear for text."
+    }
+   ],
+   "costUsd": 0.024628,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.38,
+      "y0": 0.23,
+      "x1": 0.62,
+      "y1": 0.52
+     },
+     {
+      "label": "wolf",
+      "x0": 0.79,
+      "y0": 0.33,
+      "x1": 0.89,
+      "y1": 0.46
+     }
+    ],
+    "objects": [
+     {
+      "label": "basket",
+      "x0": 0.33,
+      "y0": 0.58,
+      "x1": 0.44,
+      "y1": 0.69
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks very good; hero and wolf faces visible, basket present, scene matches description well. Middle and bottom bands have faces and objects, so not clear for text.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
   }
  }
 }

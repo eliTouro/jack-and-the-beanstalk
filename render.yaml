@@ -35,3 +35,11 @@ services:
         sync: false
       - key: PUBLIC_URL
         value: https://beanstalk.eliweiss.me
+      # Lulu Print API, SANDBOX account (developers.sandbox.lulu.com). Without these, a
+      # simulated printer stands in.
+      - key: LULU_CLIENT_KEY
+        sync: false
+      - key: LULU_CLIENT_SECRET
+        sync: false
+      - key: LULU_CONTACT_EMAIL
+        sync: false

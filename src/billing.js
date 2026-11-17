@@ -102,11 +102,76 @@ export async function createCheckout({ userId, amountCents, baseUrl }) {
   return { url };
 }
 
-// Looks the session up at Stripe and, if it was paid, credits the account exactly once.
-// Safe to call any number of times. Returns 'paid' | 'pending' | 'expired' | 'unknown'.
-export async function confirmSession(sessionId, { mockPaid = false } = {}) {
-  const [pay] = await query('select id, user_id, amount_cents, status from payments where session_id = $1', [sessionId]);
-  if (!pay) return 'unknown';
+// ---- paying for a printed copy -----------------------------------------------------------
+// The order is paid with its own Stripe Checkout, for the exact total. Once Stripe confirms
+// it, `onPrintPaid` (set by the server) sends the order to the printer.
+const hooks = { onPrintPaid: null };
+export const setPrintPaidHandler = (fn) => { hooks.onPrintPaid = fn; };
+
+export async function createPrintCheckout({ userId, order, bookId, baseUrl }) {
+  const mode = stripeMode();
+  if (mode === 'off') throw new HttpError(503, 'Card payments are not available right now.');
+  let sessionId, url;
+  if (mode === 'mock') {
+    sessionId = `mock_${randomBytes(12).toString('hex')}`;
+    url = `/billing/mock-pay?session_id=${sessionId}`;
+  } else {
+    try {
+      const session = await stripe().checkout.sessions.create({
+        mode: 'payment',
+        line_items: [
+          { quantity: 1, price_data: { currency: 'usd', unit_amount: order.price_cents, product_data: { name: `Hardcover picture book: ${order.title}`.slice(0, 250), description: '6 x 9 in hardcover, full colour, printed and bound for you, standard shipping included' } } },
+          ...(order.shipping_cents ? [{ quantity: 1, price_data: { currency: 'usd', unit_amount: order.shipping_cents, product_data: { name: 'Faster shipping' } } }] : []),
+        ],
+        success_url: `${baseUrl}/billing/return?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/?book=${encodeURIComponent(bookId)}&order=cancelled`,
+        client_reference_id: String(userId),
+        metadata: { app: 'beanstalk', user_id: String(userId), purpose: 'print', order_id: String(order.id) },
+      });
+      sessionId = session.id; url = session.url;
+    } catch (err) {
+      log.error({ type: err?.type, code: err?.code, status: err?.statusCode, message: err?.message }, 'stripe print checkout failed');
+      throw new HttpError(502, 'Stripe could not start the payment. Please try again.');
+    }
+  }
+  await query(`insert into payments (user_id, session_id, amount_cents, purpose, order_id) values ($1, $2, $3, 'print', $4)`, [userId, sessionId, order.total_cents, order.id]);
+  return { url };
+}
+
+// The printer could not take the order: the whole payment goes back to the card.
+export async function refundPrintOrder(order) {
+  const claimed = await query('update print_orders set refunded = true where id = $1 and refunded = false returning id', [order.id]);
+  if (!claimed.length) return;
+  const [pay] = await query(`select id, user_id, amount_cents, payment_intent, session_id from payments where order_id = $1 and purpose = 'print' and status = 'paid' order by id desc limit 1`, [order.id]);
+  if (!pay) return;
+  const number = `BB-${String(order.id).padStart(5, '0')}`;
+  let stripeId = null, error = null;
+  try {
+    if (pay.session_id.startsWith('mock_')) stripeId = `mock_re_${randomBytes(6).toString('hex')}`;
+    else stripeId = (await stripe().refunds.create({ payment_intent: pay.payment_intent, amount: pay.amount_cents, reason: 'requested_by_customer', metadata: { app: 'beanstalk', order_id: String(order.id) } })).id;
+  } catch (err) {
+    error = String(err?.message || 'Stripe refused the refund').slice(0, 300);
+    log.error({ message: error, orderId: order.id }, 'print refund failed');
+  }
+  const [refund] = await query(
+    `insert into refunds (user_id, payment_id, amount_cents, reason, status, stripe_refund_id, error, processed_at) values ($1,$2,$3,$4,$5,$6,$7, now()) returning id`,
+    [pay.user_id, pay.id, pay.amount_cents, `Order ${number} could not be printed`, error ? 'failed' : 'processed', stripeId, error],
+  );
+  await addTx({ userId: pay.user_id, amount: pay.amount_cents, kind: 'print_canceled', description: `Order ${number} canceled: ${order.title}`, paymentId: pay.id, refundId: refund.id });
+  if (!error) await addTx({ userId: pay.user_id, amount: -pay.amount_cents, kind: 'refund', description: `Refund to your card for order ${number}`, paymentId: pay.id, refundId: refund.id });
+}
+
+// Looks the session up at Stripe and, if it was paid, records it exactly once: a top-up
+// credits the balance; a print order is recorded and sent to the printer. Safe to call any
+// number of times. Returns { status: 'paid' | 'pending' | 'expired' | 'unknown', purpose, orderId }.
+export async function confirmSession(sessionId, opts = {}) {
+  const [pay] = await query('select id, user_id, amount_cents, status, purpose, order_id from payments where session_id = $1', [sessionId]);
+  if (!pay) return { status: 'unknown' };
+  const status = await confirmPayment(pay, sessionId, opts);
+  return { status, purpose: pay.purpose, orderId: pay.order_id };
+}
+
+async function confirmPayment(pay, sessionId, { mockPaid = false } = {}) {
   if (pay.status === 'paid') return 'paid';
   let paid = false, intent = null, expired = false;
   if (sessionId.startsWith('mock_')) {
@@ -128,7 +193,18 @@ export async function confirmSession(sessionId, { mockPaid = false } = {}) {
     if (expired) await query(`update payments set status = 'expired' where id = $1`, [pay.id]);
     return expired ? 'expired' : 'pending';
   }
-  await query(`update payments set status = 'paid', payment_intent = $2, paid_at = now() where id = $1 and status <> 'paid'`, [pay.id, intent]);
+  const first = await query(`update payments set status = 'paid', payment_intent = $2, paid_at = now() where id = $1 and status <> 'paid' returning id`, [pay.id, intent]);
+  if (pay.purpose === 'print') {
+    if (!first.length) return 'paid'; // recorded a moment ago by another request
+    const [order] = await query('select id, title from print_orders where id = $1', [pay.order_id]);
+    const number = `BB-${String(pay.order_id).padStart(5, '0')}`;
+    // Two lines in the history: the card payment in, and the order out.
+    await addTx({ userId: pay.user_id, amount: pay.amount_cents, kind: 'print_payment', description: `Paid ${dollars(pay.amount_cents)} by card for order ${number}`, paymentId: pay.id });
+    await addTx({ userId: pay.user_id, amount: -pay.amount_cents, kind: 'print_order', description: `Printed book ordered: ${order?.title || number}`, paymentId: pay.id });
+    log.info({ event: 'billing.print', userId: pay.user_id, cents: pay.amount_cents, orderId: pay.order_id }, 'billing.print');
+    if (hooks.onPrintPaid) Promise.resolve(hooks.onPrintPaid(pay.order_id)).catch((err) => log.error({ err }, 'print order hand-off failed'));
+    return 'paid';
+  }
   // The unique index on (payment_id) where kind = 'fund' makes a second credit impossible.
   await addTx({ userId: pay.user_id, amount: pay.amount_cents, kind: 'fund', description: `Added ${dollars(pay.amount_cents)} with Stripe`, paymentId: pay.id });
   log.info({ event: 'billing.fund', userId: pay.user_id, cents: pay.amount_cents }, 'billing.fund');
@@ -146,7 +222,7 @@ async function reconcile(userId) {
 
 // ---- refunds: the user asks, then it is processed at Stripe --------------------------
 export async function requestRefund({ userId, paymentId, reason }) {
-  const [pay] = await query(`select id, amount_cents, paid_at from payments where id = $1 and user_id = $2 and status = 'paid'`, [Number(paymentId) || 0, userId]);
+  const [pay] = await query(`select id, amount_cents, paid_at from payments where id = $1 and user_id = $2 and status = 'paid' and purpose = 'fund'`, [Number(paymentId) || 0, userId]);
   if (!pay) throw new HttpError(404, "That payment doesn't exist.");
   const [used] = await query(`select coalesce(sum(amount_cents), 0)::int as cents from refunds where payment_id = $1 and status in ('requested', 'processed')`, [pay.id]);
   const amount = Math.min(pay.amount_cents - used.cents, await balance(userId));
@@ -209,7 +285,7 @@ export async function accountJson(user) {
     query(
       `select p.id, p.amount_cents, p.paid_at,
          coalesce((select sum(amount_cents) from refunds r where r.payment_id = p.id and r.status in ('requested', 'processing', 'processed')), 0)::int as refunded
-       from payments p where p.user_id = $1 and p.status = 'paid' order by p.id desc limit 50`,
+       from payments p where p.user_id = $1 and p.status = 'paid' and p.purpose = 'fund' order by p.id desc limit 50`,
       [user.id],
     ),
     query(

@@ -163,9 +163,65 @@
 
           <section class="card" aria-labelledby="h-about">
             <h2 id="h-about">About me</h2>
-            <p class="sub">The back page of the book. Changes save as you type.</p>
+            <p class="sub">The back cover of the book. Changes save as you type, and everything is checked before it is printed.</p>
             <form id="about-form" novalidate style="max-width:38rem"></form>
             <p class="small" style="margin-top:8px"><span id="save-status" role="status" aria-live="polite"></span> <button type="button" id="save-retry" class="link-btn" hidden>Try saving again</button></p>
+          </section>
+
+          <section class="card print" id="print-card" aria-labelledby="h-print">
+            <div class="card-head">
+              <h2 id="h-print">Order a printed copy</h2>
+              <p class="print-price"><b id="print-price" class="num"></b> <span>with standard US shipping</span></p>
+            </div>
+            <p class="sub" id="print-product"></p>
+            <div id="order-note" class="note" role="status" hidden></div>
+            <ul id="order-list" class="orders"></ul>
+
+            <ol class="print-steps">
+              <li id="ps-review" class="print-step">
+                <h3>Look through the proof</h3>
+                <p class="small">This is exactly what will be printed: the cover, the copyright page, all 20 pages and the About Me back cover. Nothing is printed until you approve it.</p>
+                <div class="row" style="margin-top:12px">
+                  <a id="proof-btn" class="btn btn-ghost" target="_blank" rel="noopener">Open the proof</a>
+                </div>
+                <label class="check"><input type="checkbox" id="proof-ok" disabled> <span>I have looked through every page. The pictures, the name and the details are right.</span></label>
+                <div class="row" style="margin-top:12px">
+                  <button type="button" id="approve-btn" class="btn btn-primary" disabled>Approve for printing</button>
+                  <button type="button" id="unapprove-btn" class="link-btn" hidden>Withdraw approval</button>
+                </div>
+                <p id="approve-note" class="small" style="margin-top:8px"></p>
+                <div id="approve-err" class="err" role="alert" hidden><p></p></div>
+              </li>
+              <li id="ps-ship" class="print-step">
+                <h3>Where should we send it?</h3>
+                <form id="ship-form" novalidate>
+                  <fieldset id="ship-fields">
+                    <div class="grid2">
+                      <label class="field"><span>Full name</span><input type="text" id="ship-name" autocomplete="shipping name" maxlength="60"></label>
+                      <label class="field"><span>Phone</span><input type="text" id="ship-phone" autocomplete="shipping tel" inputmode="tel" maxlength="20"></label>
+                    </div>
+                    <label class="field"><span>Street address</span><input type="text" id="ship-street1" autocomplete="shipping address-line1" maxlength="80"></label>
+                    <label class="field"><span>Apartment, suite <em>(optional)</em></span><input type="text" id="ship-street2" autocomplete="shipping address-line2" maxlength="80"></label>
+                    <div class="grid3">
+                      <label class="field"><span>City</span><input type="text" id="ship-city" autocomplete="shipping address-level2" maxlength="50"></label>
+                      <label class="field"><span>State</span><select id="ship-state" autocomplete="shipping address-level1"></select></label>
+                      <label class="field"><span>ZIP code</span><input type="text" id="ship-zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10"></label>
+                    </div>
+                    <label class="field"><span>Email for delivery updates</span><input type="text" id="ship-email" autocomplete="email" inputmode="email" maxlength="120"></label>
+                    <fieldset class="field">
+                      <legend class="legend">Shipping</legend>
+                      <div id="ship-speeds" class="speeds"></div>
+                    </fieldset>
+                  </fieldset>
+                  <div class="pay-line">
+                    <p id="order-total"></p>
+                    <button type="submit" id="order-btn" class="btn btn-egg" disabled>Pay and place the order</button>
+                  </div>
+                  <div id="order-err" class="err" role="alert" hidden><p></p></div>
+                  <p class="small" style="margin-top:8px">We ship within the United States. You pay by card on Stripe’s secure page, then come straight back here.</p>
+                </form>
+              </li>
+            </ol>
           </section>
 
           <p style="margin:24px 0"><button type="button" id="delete-btn" class="link-btn link-danger">Delete this book</button></p>
@@ -195,6 +251,10 @@
             <p id="fund-hint" class="small" style="margin-top:12px"></p>
           </section>
         </div>
+        <section class="card" aria-labelledby="h-orders" id="orders-card" hidden>
+          <h2 id="h-orders">Printed books</h2>
+          <ul id="acct-orders" class="orders"></ul>
+        </section>
         <section class="card" aria-labelledby="h-refund">
           <h2 id="h-refund">Refunds</h2>
           <p class="sub">Money you added and have not spent can go back to the card it came from. Ask for the refund here, then it is processed at Stripe.</p>
@@ -228,6 +288,10 @@
       <section id="costs-card" class="card" aria-labelledby="h-costs" hidden>
         <h2 id="h-costs">Cost to make a book, next to its price</h2>
         <div id="costs"></div>
+      </section>
+      <section id="costs-print-card" class="card" aria-labelledby="h-costs-print" hidden>
+        <h2 id="h-costs-print">Printed copies: cost and margin</h2>
+        <div id="costs-print"></div>
       </section>
       <section id="costs-books-card" class="card" aria-labelledby="h-costs-books" hidden>
         <h2 id="h-costs-books">Your books</h2>

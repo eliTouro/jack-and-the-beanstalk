@@ -1357,6 +1357,60 @@
     "likeness": 10,
     "sceneMatch": 9
    }
+  },
+  "cover": {
+   "attempts": 1,
+   "chosen": 1,
+   "score": 97,
+   "passed": true,
+   "summary": "Looks very good; the scene matches well with all key elements present except the castle is only partially visible and the beanstalk leaves are not all heart-shaped.",
+   "history": [
+    {
+     "attempt": 1,
+     "ok": true,
+     "score": 97,
+     "issues": [],
+     "summary": "Looks very good; the scene matches well with all key elements present except the castle is only partially visible and the beanstalk leaves are not all heart-shaped."
+    }
+   ],
+   "costUsd": 0.024729,
+   "model": "gpt-image-2.5-flare",
+   "zone": "top",
+   "analysis": {
+    "faces": [
+     {
+      "label": "hero",
+      "x0": 0.38,
+      "y0": 0.33,
+      "x1": 0.53,
+      "y1": 0.53
+     },
+     {
+      "label": "cow",
+      "x0": 0.22,
+      "y0": 0.38,
+      "x1": 0.34,
+      "y1": 0.56
+     }
+    ],
+    "objects": [
+     {
+      "label": "speckled beans",
+      "x0": 0.44,
+      "y0": 0.58,
+      "x1": 0.48,
+      "y1": 0.62
+     }
+    ],
+    "clear": {
+     "top": true,
+     "middle": false,
+     "bottom": false
+    },
+    "summary": "Looks very good; the scene matches well with all key elements present except the castle is only partially visible and the beanstalk leaves are not all heart-shaped.",
+    "likeness": 10,
+    "sceneMatch": 9
+   }
   }
  }
 }

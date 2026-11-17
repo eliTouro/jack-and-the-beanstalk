@@ -15,6 +15,13 @@ export default {
     { id: 'hen', name: 'The hen', description: "A plump little russet-brown hen with a bright red comb, a glossy golden sheen on her feathers and a proud, fussy manner." },
     { id: 'harp', name: 'The golden harp', description: "A small golden harp with a carved smiling face at the top of its frame, shining strings and swirly ornate curls, cheerful and lively." },
   ],
+  // The front cover: drawn like a page, with the title printed in the clear top part.
+  cover: {
+    title: 'Front cover',
+    cast: ['cow'],
+    scene: "A sunny green hillside meadow in the morning. An enormous twisting green beanstalk with huge heart-shaped leaves rises from the meadow up into fluffy white clouds, where the towers of a small golden castle peek out. The hero stands at the foot of the beanstalk, one hand on the stalk, looking out at the viewer with a big excited smile. Milky-White the cow stands beside the hero, and five speckled beans glint in the hero's other open hand.",
+    composition: "Front cover of a children's picture book, portrait. The hero is centred, seen from the knees up, face large, front-lit and clearly visible, in the lower-middle of the picture. The beanstalk curves up behind the hero to the clouds and castle. The top 38% of the picture is open blue sky with a few soft pale clouds and the small castle at one side: no faces, hands or important objects there, because the book title goes there.",
+  },
   pages: [
     {
       title: 'The empty cupboard',

@@ -47,3 +47,20 @@ export const TEMPLATE = rows.map(([zone, shot], i) => ({
 }));
 
 export const PAGE_COUNT = TEMPLATE.length;
+
+// The front cover follows the same rules: one framing, one clear zone for the title.
+export const COVER = {
+  number: 0,
+  id: 'cover',
+  zone: 'top',
+  shot: 'front cover, medium-wide shot',
+  keepClear: 'Keep the top 38% of the picture visually empty: only open sky, soft clouds or quiet treetops. Every face, head, hand and important object stays below it. The book title will be printed there.',
+};
+
+// The printed book: interior pages are the copyright page, the 20 story pages, a closing
+// page and blank end pages, padded to a page count the binding accepts.
+export const PRINT = {
+  interiorPages: 24,
+  // 6 x 9 in, premium full colour, hardcover case wrap, 80# coated white paper, gloss.
+  podPackageId: process.env.LULU_POD_PACKAGE_ID || '0600X0900FCPRECW080CW444GXX',
+};

@@ -35,7 +35,7 @@ function fidelityFor(model) {
 
 // At most IMAGE_CONCURRENCY image calls run at once across the whole server, so one
 // 20-page book can't trip the API's rate limit for everyone else.
-const MAX_PARALLEL = Number(process.env.IMAGE_CONCURRENCY || 24);
+const MAX_PARALLEL = Number(process.env.IMAGE_CONCURRENCY || 22);
 let running = 0;
 const waiting = [];
 async function withSlot(work) {
@@ -49,8 +49,8 @@ async function withSlot(work) {
   }
 }
 
-// One request to the image model. No retry loop here: the quality loop in
-// src/quality.js decides whether a picture is drawn again.
+// One request to the image model. Apart from waiting out a rate limit there is no retry
+// here: the quality loop in src/quality.js decides whether a picture is drawn again.
 //
 // images: [{ data: base64, mimeType }]   size: '1024x1024' | '1536x1024' | '1024x1536'
 // Returns { data, mimeType, model, usage, costUsd, ms }.
@@ -62,14 +62,25 @@ export async function generateImage({ prompt, images = [], size = '1024x1024', q
   );
 
   let result;
-  try {
-    const common = { model: MODEL, prompt, size, quality, output_format: 'jpeg', n: 1 };
-    // With input pictures this is an edit; with none it's plain generation.
-    result = await withSlot(() => (files.length
-      ? getClient().images.edit({ ...common, image: files, ...fidelityFor(MODEL) })
-      : getClient().images.generate(common)));
-  } catch (err) {
-    throw translateError(err);
+  const common = { model: MODEL, prompt, size, quality, output_format: 'jpeg', n: 1 };
+  // The account's image rate limit is shared by every book being made. When it is hit,
+  // wait as long as the API asks and try the same call again (up to 5 times, about a
+  // minute in all). These waits are not quality-loop attempts and cost nothing.
+  for (let wait = 0; ; wait++) {
+    try {
+      // With input pictures this is an edit; with none it's plain generation.
+      result = await withSlot(() => (files.length
+        ? getClient().images.edit({ ...common, image: files, ...fidelityFor(MODEL) })
+        : getClient().images.generate(common)));
+      break;
+    } catch (err) {
+      if (err?.status === 429 && err?.code === 'rate_limit_exceeded' && wait < 5) {
+        const asked = Number(/try again in ([\d.]+)s/i.exec(err?.message || '')?.[1] || 0);
+        await new Promise((r) => setTimeout(r, Math.min(20, Math.max(2, asked) + wait * 2) * 1000 + Math.random() * 1500));
+        continue;
+      }
+      throw translateError(err);
+    }
   }
 
   const data = result.data?.[0]?.b64_json;

@@ -12,6 +12,13 @@ export default {
     { id: 'wolf', name: 'The wolf', description: "A big, lanky grey wolf with a bushy tail, oversized pointed ears, round yellow-green eyes and a sly closed-mouth grin, more silly and sneaky than frightening." },
     { id: 'woodcutter', name: 'The woodcutter', description: "A tall, broad-shouldered woodcutter in his forties with a short brown beard, a red-and-black checked flannel shirt, brown braces and trousers, and sturdy boots, kind and booming." },
   ],
+  // The front cover: drawn like a page, with the title printed in the clear top part.
+  cover: {
+    title: 'Front cover',
+    cast: ['wolf'],
+    scene: "A sunlit forest path in spring, wildflowers along the edges and tall trees with dappled light. The hero walks along the path toward the viewer in the bright red hooded cloak, hood up, carrying the wicker basket with the checked cloth, smiling warmly at the viewer. Far behind, the grey wolf peeks out from behind a tree trunk with a sly, silly grin.",
+    composition: "Front cover of a children's picture book, portrait. The hero is centred, seen from the knees up, face large, front-lit and clearly visible under the hood, in the lower-middle of the picture. The wolf is small, in the background to one side, below the top third. The top 38% of the picture is soft pale sky glimpsed through high, quiet treetops: no faces, hands or important objects there, because the book title goes there.",
+  },
   pages: [
     {
       title: 'The red cloak',

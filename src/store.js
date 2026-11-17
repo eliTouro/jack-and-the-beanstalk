@@ -135,14 +135,14 @@ export async function countRecentBooks(userId, sinceMs) {
 export async function getBookRow(bookId, userId) {
   if (!/^[0-9a-f-]{36}$/i.test(bookId || '')) return null;
   const [row] = await query(
-    'select id, user_id, story, about, refunded, created_at, updated_at, pdf is not null as has_pdf from books where id = $1 and user_id = $2 and template = $3',
+    'select id, user_id, story, about, refunded, approved_hash, approved_at, created_at, updated_at, pdf is not null as has_pdf from books where id = $1 and user_id = $2 and template = $3',
     [bookId, userId, TEMPLATE_VERSION],
   );
   return row || null;
 }
 
 export async function getBookForJob(bookId) {
-  const [row] = await query('select id, user_id, story, about, refunded from books where id = $1', [bookId]);
+  const [row] = await query('select id, user_id, story, about, refunded, created_at from books where id = $1', [bookId]);
   return row || null;
 }
 
@@ -163,6 +163,7 @@ export async function listBooks(userId) {
        count(*)::int as total,
        bool_or(i.status in ('queued', 'running')) as busy,
        max(case when i.slot = 'p01' and i.data is not null then i.version end) as page1_v,
+       max(case when i.slot = 'cover' and i.data is not null then i.version end) as cover_v,
        max(case when i.slot = 'reference' and i.data is not null then i.version end) as ref_v
      from books b join book_images i on i.book_id = b.id
      where b.user_id = $1 and b.template = $2 group by b.id order by b.created_at desc`,
@@ -171,7 +172,7 @@ export async function listBooks(userId) {
 }
 
 export async function saveAbout(bookId, about) {
-  await query('update books set about = $2, updated_at = now(), pdf = null where id = $1', [bookId, JSON.stringify(about)]);
+  await query('update books set about = $2, updated_at = now(), pdf = null where id = $1 and about is distinct from $2::jsonb', [bookId, JSON.stringify(about)]);
 }
 
 export async function deleteBook(bookId) {
@@ -195,9 +196,19 @@ export async function getImage(bookId, slot, { thumb = false } = {}) {
 
 // Everything the PDF needs for one page.
 export async function getPageForPdf(bookId, slot) {
-  const [row] = await query('select data, mime, zone, tone from book_images where book_id = $1 and slot = $2 and data is not null', [bookId, slot]);
-  return row ? { buffer: toBuffer(row.data), mimeType: row.mime, zone: row.zone, tone: row.tone } : null;
+  const [row] = await query('select data, mime, zone, tone, analysis from book_images where book_id = $1 and slot = $2 and data is not null', [bookId, slot]);
+  return row ? { buffer: toBuffer(row.data), mimeType: row.mime, zone: row.zone, tone: row.tone, analysis: row.analysis || null } : null;
 }
+
+// Books made before a slot existed (the front cover) get the missing rows, empty.
+export async function ensureSlots(bookId, have) {
+  const missing = SLOTS.map((s) => s.id).filter((id) => !have.includes(id));
+  if (missing.length) await query('insert into book_images (book_id, slot) select $1, unnest($2::text[]) on conflict do nothing', [bookId, missing]);
+  return missing.length > 0;
+}
+
+export const setApproval = (bookId, hash) =>
+  query('update books set approved_hash = $2, approved_at = case when $2::text is null then null else now() end where id = $1', [bookId, hash]);
 
 export async function getPdf(bookId) {
   const [row] = await query('select pdf from books where id = $1', [bookId]);

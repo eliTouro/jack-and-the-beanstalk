@@ -19,7 +19,10 @@ import { fileURLToPath } from 'node:url';
 import { PAGE } from './template.js';
 
 export const ZONES = ['top', 'bottom', 'middle'];
-const EDGE = 0.03;       // gap between the text plate and the page edge
+// Gap between the text plate and the trimmed page edge. With the plate's own padding the
+// words stay more than half an inch (36 pt) inside the trim, the printer's safety margin.
+const EDGE_X = 0.06;
+const EDGE_Y = 0.045;
 const FACE_PAD = 0.012;  // extra room kept around every face
 
 // The story type: one face, one size, measured with the same engine that prints it.
@@ -29,7 +32,7 @@ export const TEXT = {
   lineGap: 3,
   pad: 12, // space between the plate edge and the text, in points
 };
-export const textWidth = () => PAGE.width * (1 - EDGE * 2) - TEXT.pad * 2;
+export const textWidth = () => PAGE.width * (1 - EDGE_X * 2) - TEXT.pad * 2;
 
 let ruler;
 // Height of the printed text block in points, measured, not guessed.
@@ -44,8 +47,8 @@ export function textFraction(text) {
 }
 
 export function bandRect(zone, frac) {
-  const y0 = zone === 'top' ? EDGE : zone === 'bottom' ? 1 - EDGE - frac : 0.5 - frac / 2;
-  return { x0: EDGE, y0, x1: 1 - EDGE, y1: y0 + frac };
+  const y0 = zone === 'top' ? EDGE_Y : zone === 'bottom' ? 1 - EDGE_Y - frac : 0.5 - frac / 2;
+  return { x0: EDGE_X, y0, x1: 1 - EDGE_X, y1: y0 + frac };
 }
 
 const area = (b) => Math.max(0, b.x1 - b.x0) * Math.max(0, b.y1 - b.y0);

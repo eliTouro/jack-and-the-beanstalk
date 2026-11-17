@@ -1,10 +1,10 @@
 # A storybook starring your child
 
-**Live:** https://beanstalk.eliweiss.me · **What still needs work:** [to-do.md](to-do.md) · **Self-review log:** [review-log.md](review-log.md) · **Testing:** [TESTING.md](TESTING.md)
+**Live:** https://beanstalk.eliweiss.me · **Write-up (print and ship, pricing):** [WRITEUP.md](WRITEUP.md) · **What still needs work:** [to-do.md](to-do.md) · **Self-review log:** [review-log.md](review-log.md) · **Testing:** [TESTING.md](TESTING.md)
 
-Sign in with Google, add money to your account, upload one photo of a child and pick a story: *Jack and the Beanstalk* or *Little Red Riding Hood*. About 30 seconds later you have a 20-page illustrated book with that child as the hero on every page, plus an About Me back page, as a PDF. A book costs $0.99.
+Sign in with Google, add money to your account, upload one photo of a child and pick a story: *Jack and the Beanstalk* or *Little Red Riding Hood*. About 30 seconds later you have a 20-page illustrated book with that child as the hero on every page, as a PDF: a front cover with the title "starring" the child, a copyright page, the story, and an About Me back cover. A book costs $0.99. Approve the proof, enter an address and pay $28.99, and the book is sent to a print-on-demand printer (Lulu, sandbox) as a hardcover.
 
-Sample books made by this build (synthetic test children): [Jack and the Beanstalk](samples/Theo-JackAndTheBeanstalk.pdf) · [Little Red Riding Hood](samples/Maya-LittleRedRidingHood.pdf)
+Sample book made by this build (synthetic test child): [Little Red Riding Hood, starring Maya](samples/Maya-LittleRedRidingHood.pdf)
 
 ## What it does
 
@@ -12,7 +12,9 @@ Sample books made by this build (synthetic test children): [Jack and the Beansta
 |---|---|
 | **Money** | Fund the account through Stripe Checkout (sandbox), buying credit for any number of books from 1 to 50. See the balance. $0.99 leaves the balance for every book. Ask for a refund of unspent money, then process it at Stripe. A history page lists every credit and debit, what caused it and the balance after it. |
 | **Cost** | Every image call, every retry and every picture check is logged with its token counts and cost. The cost report (https://beanstalk.eliweiss.me/?view=costs, signed in; not linked from the shop) shows the average cost of a book next to the $0.99 price, and the cost of each of your books. It is kept off the shop pages on purpose. |
-| **The book** | 20 pages plus About Me. One 20-page template serves both stories. A character bible and all 40 scenes are drawn ahead of time and stored in the database. |
+| **The book** | Front cover, copyright page, 20 story pages, The End, About Me back cover. One 20-page template (plus a cover row) serves both stories. A character bible and all 42 scenes (40 pages, 2 covers) are drawn ahead of time and stored in the database. |
+| **Print and ship** | Open the proof, approve it (any later change voids the approval), enter a US address, pick a shipping speed, pay with Stripe. Only then are the print files built (interior with bleed, case-wrap cover) and sent to the Lulu Print API sandbox. Orders are tracked on the book and account pages; a failed print job is refunded automatically. Details in [WRITEUP.md](WRITEUP.md). |
+| **Checking what is typed** | The child's name must be a real-sounding name, and the About Me details must be fit for a children's book: rules and word lists in code, OpenAI's moderation endpoint, and a small model for names. Checked before the book is charged, on every save, at approval and at ordering. |
 | **Speed** | The page is static HTML with one small stylesheet and one script. A book takes about 30 seconds from photo to PDF. A progress bar names the stage, and each thumbnail appears as its picture finishes. |
 | **Storage** | Photos, pictures, thumbnails and the finished PDF are stored in Postgres. Sign in again tomorrow and the PDF still downloads. |
 | **Quality loop** | Every generated picture is checked by a vision model. A failure is drawn again with the reason, at most 3 drawings. If none passes, the best-scoring one is kept. The attempt count is shown on every picture. |
@@ -21,9 +23,9 @@ Sample books made by this build (synthetic test children): [Jack and the Beansta
 ## How a book is made
 
 ```
-ONCE, AHEAD OF TIME (scripts/pregen.mjs, 53 pictures, $1.14 in total)
+ONCE, AHEAD OF TIME (scripts/pregen.mjs, 55 pictures, $1.19 in total)
   character bible   one picture per character, plus a stand-in hero         assets/library/<story>/bible/
-  40 scenes         each drawn from the bible pictures it needs             assets/library/<story>/scenes/
+  42 scenes         20 pages and a cover per story, from the bible pictures  assets/library/<story>/scenes/
   every picture goes through the quality loop; results are in meta.json
   the server copies bible and scenes into Postgres when it starts           tables: characters, scenes
 
@@ -31,12 +33,38 @@ PER BOOK (src/jobs.js)
   $0.99 leaves the balance
   0 s    pages the hero is not on are copied from the template (instant)
   0 s    reference: the child drawn as the hero, from the photo             1 image call + 1 check
-  13 s   every other page at the same time: the template scene is edited    17-20 image calls + checks
+  13 s   the cover and every other page at the same time: the template      18-21 image calls + checks
          so its stand-in hero becomes this child
   each picture: draw -> check -> redraw on failure (3 drawings at most) -> keep the best
   each finished picture: thumbnail made, text position chosen, saved to Postgres
-  30 s   PDF built and stored
+  30 s   PDF built and stored: cover, copyright, 20 pages, The End, About Me back cover
 ```
+
+## Print and ship (`src/print.js`)
+
+```
+book page ── Open the proof ── tick "I have looked through every page" ── Approve for printing
+              (approval = fingerprint of every picture version, text position, name and details)
+          ── address (US) + shipping speed ── POST /api/books/:id/print-order ── Stripe Checkout
+Stripe ── /billing/return ── payment confirmed with Stripe ── ledger: card payment in, order out
+       ── build print files: interior 24 pages at 6.25 x 9.25 in (bleed), case-wrap cover
+          sized by Lulu's /cover-dimensions/ ── stored with the order
+       ── POST /print-jobs/ to api.sandbox.lulu.com (files fetched from /print-files/<id>/<token>/)
+order pages ── GET /print-jobs/<id>/ at most once a minute ── Sent to the printer · Being printed · Shipped
+            ── REJECTED or CANCELED ── refunded to the card automatically
+```
+
+- **Sandbox only.** The Lulu client has the sandbox URL and nothing else. Without `LULU_CLIENT_KEY` / `LULU_CLIENT_SECRET`, a simulated printer moves the order through the same stages on a timer.
+- **Price:** $28.99 with standard shipping, faster shipping extra. Cost and margin: [WRITEUP.md](WRITEUP.md#5-price-cost-and-margin), and live on the cost report page.
+- **Product:** Lulu `0600X0900FCPRECW080CW444GXX`: 6 x 9 in hardcover case wrap, premium colour, 24 pages.
+
+## What the family types is checked (`src/moderation.js`)
+
+1. Rules: length, characters, no links, emails or phone numbers; word lists of insults (refused as a name), and swear words, slurs and sexual words (refused anywhere), also when disguised with digits or dots.
+2. OpenAI's moderation endpoint.
+3. `gpt-4.1-mini` with a strict JSON schema: is the name a plausible child's name from any culture; is each detail printable in a children's book.
+
+Layers 2 and 3 are skipped in mock mode and in the tests. If they fail, the rules alone decide and the failure is logged.
 
 Measured on two real runs (see TESTING.md): 30 s and 55 s from photo to PDF, at $0.33 to $0.59 of API cost per book. The 55 s run had one image call that hung; a call that runs longer than 21 s now gets a backup call.
 
@@ -96,7 +124,9 @@ To keep the cost down: `low` image quality, input pictures sent at 640 px and 38
 | `src/quality.js` | Draw, check, redraw: 3 drawings at most, best kept, deadline |
 | `src/analyze.js` | The picture check (vision model) and its pass rules and score |
 | `src/layout.js` | Where the text goes on each finished picture |
-| `src/pdf.js`, `src/bookpdf.js` | Builds the PDF and stores it with the book |
+| `src/pdf.js`, `src/bookpdf.js` | The book's PDFs: front cover, copyright page, story, The End, About Me back cover; the reading copy (stored with the book) and the printer's interior and cover files |
+| `src/print.js` | Lulu Print API sandbox client, simulated printer, print prices, address checks, order lifecycle |
+| `src/moderation.js` | Checks the name and the About Me details before anything is printed |
 | `src/library.js` | Character bible and scenes: files to database, cached reads |
 | `src/billing.js` | Ledger, Stripe Checkout, refunds, the account page data |
 | `src/cost.js` | Price table and cost maths |
@@ -118,7 +148,7 @@ cp .env.example .env      # fill in the values
 npm run dev:mock          # free: mock images, in-memory database, simulated checkout, "Dev sign-in" link
 npm run dev:sandbox       # mock images, but the real Stripe sandbox
 npm run dev               # everything real (image calls cost money; uses DATABASE_URL)
-npm test                  # 39 offline tests
+npm test                  # 47 offline tests
 npm run book -- test-faces/child-1.jpg jack "Theo" out.pdf   # one real timed book
 ```
 
@@ -127,7 +157,7 @@ In mock mode a fifth of picture checks fail on purpose, so the redraw loop and t
 ## Deploy (Render)
 
 1. Render → **New → Blueprint** → this repo. Every push to `main` redeploys.
-2. Environment: `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL` (Neon), `STRIPE_SECRET_KEY` (the `sk_test_` key), `SESSION_SECRET`, optional `ADMIN_EMAILS`.
+2. Environment: `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DATABASE_URL` (Neon), `STRIPE_SECRET_KEY` (the `sk_test_` key), `SESSION_SECRET`, `PUBLIC_URL` (Lulu fetches the print files from it), `LULU_CLIENT_KEY` and `LULU_CLIENT_SECRET` (a Lulu **sandbox** account), optional `LULU_CONTACT_EMAIL`, `ADMIN_EMAILS`, `PRINT_PRICE_CENTS`, `PUBLISHER_NAME`.
 3. Google OAuth redirect URI: `https://beanstalk.eliweiss.me/auth/google/callback`.
 4. The tables and new columns are created at start. The bible and scenes are copied from `assets/library/` into the database at start.
 5. The free instance sleeps when idle. `.github/workflows/keep-warm.yml` pings it every 10 minutes.

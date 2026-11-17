@@ -33,7 +33,8 @@ export async function drawWithQuality({ make, check, maxAttempts = MAX_ATTEMPTS,
       await onCall({ kind: 'image', attempt, ok: false, costUsd: 0, ms: Date.now() - t0, error: err.message });
       history.push({ attempt, ok: false, score: null, issues: [], error: err instanceof HttpError ? err.message : 'The drawing failed.' });
       // A refusal (safety filter, bad request) will not change on a retry with the same input.
-      if (err instanceof HttpError && [400, 401, 403, 422, 500].includes(err.status)) break;
+      // (A rate limit was already waited out inside generateImage; a 429 here means no credit.)
+      if (err instanceof HttpError && [400, 401, 403, 422, 429, 500].includes(err.status)) break;
       continue;
     }
 

@@ -88,7 +88,7 @@ for (const story of stories) {
     }
   } else if (mode === 'recheck') {
     // Runs only the picture check and the text layout again on scenes that already exist (no drawing).
-    for (const page of story.pages) {
+    for (const page of [story.cover, ...story.pages]) {
       const out = `${dir}/scenes/${page.id}.jpg`;
       if ((only.length && !only.includes(page.id)) || !(await exists(out)) || !meta.scenes[page.id]) continue;
       jobs.push(async () => {
@@ -104,7 +104,7 @@ for (const story of stories) {
       });
     }
   } else {
-    for (const page of story.pages) {
+    for (const page of [story.cover, ...story.pages]) {
       const out = `${dir}/scenes/${page.id}.jpg`;
       if (only.length && !only.includes(page.id)) continue;
       if (!flags.has('--force') && (await exists(out))) continue;

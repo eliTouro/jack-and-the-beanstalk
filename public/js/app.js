@@ -32,7 +32,7 @@
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
   // ---------- api ----------
-  class ApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
+  class ApiError extends Error { constructor(message, status, fields) { super(message); this.status = status; this.fields = fields || null; } }
 
   async function api(method, path, body) {
     let res;
@@ -48,10 +48,10 @@
       throw new ApiError('Could not reach the server. Check your connection and try again.', 0);
     }
     if (!res.ok) {
-      let msg = '';
-      try { msg = (await res.json()).error; } catch { /* not json */ }
+      let msg = '', fields = null;
+      try { const j = await res.json(); msg = j.error; fields = j.fields || null; } catch { /* not json */ }
       if (res.status === 401) onUnauthorized();
-      throw new ApiError(msg || `Something went wrong (${res.status}).`, res.status);
+      throw new ApiError(msg || `Something went wrong (${res.status}).`, res.status, fields);
     }
     return res.status === 204 ? null : res.json();
   }
@@ -142,7 +142,8 @@
   }
 
   function teardown() {
-    clearTimeout(pollTimer); clearTimeout(shelfTimer);
+    clearTimeout(pollTimer); clearTimeout(shelfTimer); clearTimeout(state.orderTimer);
+    proofOpened = false; state.orderScrolled = false;
     clearInterval(tickTimer); tickTimer = null;
     if (state.me?.user && state.bookId && state.about.dirty && !state.about.saving) saveAbout();
     clearTimeout(saveTimer);
@@ -156,7 +157,7 @@
     showErr($('global-err'), '');
     if (!state.me?.user) { showView('out'); renderFan(); return; }
     const q = new URLSearchParams(location.search);
-    if (q.get('book')) enterBook(q.get('book'));
+    if (q.get('book')) enterBook(q.get('book'), q.get('order'));
     else if (q.get('view') === 'account') enterAccount(q.get('funding'));
     else if (q.get('view') === 'costs') enterCosts();
     else enterShelf();
@@ -420,8 +421,10 @@
   }
 
   // ---------- one book ----------
-  async function enterBook(id) {
+  async function enterBook(id, orderNote) {
     const view = viewToken;
+    state.orderNote = orderNote || null;
+    if (orderNote) history.replaceState(null, '', `/?book=${encodeURIComponent(id)}`);
     showView('book');
     state.bookId = id;
     $('book-title').textContent = 'Your book'; $('book-facts').textContent = '';
@@ -584,7 +587,7 @@
     const link = $('pdf-btn');
     if (ready) { link.href = `/api/books/${encodeURIComponent(b.id)}/pdf`; link.removeAttribute('aria-disabled'); }
     else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); }
-    $('need').textContent = ready ? '20 pages and About Me, one file' : b.busy ? 'Ready as soon as the pictures are' : !allDrawn ? 'Some pictures are missing' : !hasName ? "Add the child's name first" : 'Saving your changes…';
+    $('need').textContent = ready ? 'Cover, 20 pages and About Me, one file' : b.busy ? 'Ready as soon as the pictures are' : !allDrawn ? 'Some pictures are missing' : !hasName ? "Add the child's name first" : 'Saving your changes…';
   }
 
   function renderBook() {
@@ -595,7 +598,156 @@
     document.title = `${name || story.title} | ${SITE}`;
     const drawn = b.slots.filter((s) => s.imageUrl).length;
     $('book-facts').textContent = `Created ${fmtDate(b.createdAt)}. ${drawn} of ${b.slots.length} pictures drawn.`;
-    renderStage(); renderPictures(); renderDownload();
+    renderStage(); renderPictures(); renderDownload(); renderPrint();
+  }
+
+  // ---------- print and ship ----------
+  const ORDER_NOTE = {
+    placed: 'Thank you! Your order is placed. We’re sending your book to the printer now; you can follow it here.',
+    cancelled: 'Payment cancelled. Nothing was charged, and no order was placed.',
+    pending: 'Stripe has not confirmed the payment yet. The order will appear here once it does.',
+  };
+  const TRACK = ['Payment received', 'Sent to the printer', 'Being printed', 'Shipped'];
+  let printBuilt = false, proofOpened = false;
+
+  async function ensurePrintOptions() {
+    if (!state.printOptions) state.printOptions = await api('GET', '/api/print/options');
+    return state.printOptions;
+  }
+
+  function orderItem(o, { withTitle } = {}) {
+    const li = el('li', 'order');
+    const top = el('div', 'order-top');
+    const left = el('div');
+    left.append(el('b', null, withTitle ? o.title : `Order ${o.number}`), el('div', 'small', `${withTitle ? `Order ${o.number}, ` : ''}${fmtDate(o.createdAt)}. ${money(o.totalCents)}, ${o.shipping.label.toLowerCase()} shipping to ${o.shipTo}.`));
+    const tag = el('span', 'tag', o.stage.label);
+    tag.dataset.kind = o.status === 'shipped' ? 'ok' : o.stage.step < 0 ? 'bad' : 'busy';
+    top.append(left, tag);
+    li.append(top);
+    if (o.stage.step >= 0) {
+      const track = el('ol', 'track');
+      TRACK.forEach((label, i) => {
+        const step = i + 1;
+        const item = el('li', null, label);
+        item.dataset.s = o.stage.step > step || o.status === 'shipped' ? 'done' : o.stage.step === step ? 'now' : '';
+        track.append(item);
+      });
+      li.append(track);
+    }
+    const more = [];
+    if (o.status === 'shipped') more.push(`Shipped ${fmtDate(o.shippedAt)}${o.carrier ? ` by ${o.carrier}` : ''}. ${o.shipping.days.replace(/^\d+ to /, 'Arrives in about ')}.`);
+    else if (o.stage.step >= 0) more.push(`${o.shipping.label} shipping: ${o.shipping.days} after printing.`);
+    if (o.message) more.push(o.message);
+    if (more.length) li.append(el('p', 'small', more.join(' ')));
+    if (o.trackingUrl) { const a = el('a', 'link-btn', 'Track the parcel'); a.href = o.trackingUrl; a.target = '_blank'; a.rel = 'noopener'; li.append(a); }
+    return li;
+  }
+
+  async function buildPrint() {
+    if (printBuilt) return;
+    const opt = await ensurePrintOptions();
+    printBuilt = true;
+    $('print-price').textContent = money(opt.priceCents);
+    $('print-product').textContent = `${opt.product}. Printed and bound for you, with the cover and the About Me back cover from this page, and delivered to your door.`;
+    const sel = $('ship-state');
+    sel.append(new Option('Choose…', ''));
+    for (const [code, name] of Object.entries(opt.states)) sel.append(new Option(name, code));
+    const speeds = $('ship-speeds');
+    opt.shipping.forEach((sp, i) => {
+      const label = el('label', 'speed');
+      const input = el('input'); input.type = 'radio'; input.name = 'speed'; input.value = sp.level; input.checked = i === 0;
+      const text = el('span'); text.append(el('span', null, sp.label), el('small', null, sp.days));
+      label.append(input, text, el('b', null, sp.cents ? `+${money(sp.cents)}` : 'Included'));
+      input.addEventListener('change', renderOrderTotal);
+      speeds.append(label);
+    });
+    try { const saved = JSON.parse(localStorage.getItem('shipTo') || 'null'); if (saved) fillAddress(saved); } catch { /* no saved address */ }
+  }
+
+  const SHIP_FIELDS = { name: 'ship-name', street1: 'ship-street1', street2: 'ship-street2', city: 'ship-city', state_code: 'ship-state', postcode: 'ship-zip', phone_number: 'ship-phone', email: 'ship-email' };
+  function fillAddress(a) { for (const [k, id] of Object.entries(SHIP_FIELDS)) if (a[k]) $(id).value = a[k]; }
+  function readAddress() { const a = {}; for (const [k, id] of Object.entries(SHIP_FIELDS)) a[k] = $(id).value.trim(); return a; }
+  function showFieldErrors(fields) {
+    for (const [k, id] of Object.entries(SHIP_FIELDS)) {
+      const input = $(id); const wrap = input.closest('.field');
+      wrap.querySelector('.ferr')?.remove();
+      input.removeAttribute('aria-invalid');
+      if (fields?.[k]) { input.setAttribute('aria-invalid', 'true'); const e = el('span', 'ferr', fields[k]); e.id = `${id}-err`; input.setAttribute('aria-describedby', e.id); wrap.append(e); }
+    }
+  }
+
+  function renderOrderTotal() {
+    const opt = state.printOptions;
+    if (!opt) return;
+    const level = document.querySelector('input[name="speed"]:checked')?.value;
+    const sp = opt.shipping.find((x) => x.level === level) || opt.shipping[0];
+    const total = opt.priceCents + sp.cents;
+    $('order-total').textContent = `Hardcover book ${money(opt.priceCents)}${sp.cents ? ` + ${sp.label.toLowerCase()} shipping ${money(sp.cents)}` : ', standard shipping included'}. Total ${money(total)}.`;
+    $('order-btn').textContent = `Pay ${money(total)} and place the order`;
+  }
+
+  async function renderPrint() {
+    const b = state.book;
+    try { await buildPrint(); } catch { /* the options load again next time */ }
+    const approved = b.approval?.approved;
+    const ready = b.pdfReady;
+    $('proof-btn').href = `/api/books/${encodeURIComponent(b.id)}/pdf?view=1`;
+    $('proof-btn').setAttribute('aria-disabled', String(!ready));
+    $('proof-ok').disabled = !ready || approved || !proofOpened;
+    if (approved) $('proof-ok').checked = true;
+    $('approve-btn').hidden = approved;
+    $('approve-btn').disabled = !ready || !$('proof-ok').checked || state.working;
+    $('unapprove-btn').hidden = !approved;
+    $('approve-note').textContent = !ready ? 'The proof is ready once every picture is drawn and the child’s name is filled in.'
+      : approved ? `Approved ${fmtDate(b.approval.approvedAt)}. If you change anything in the book, you’ll be asked to approve it again.`
+      : b.approval?.stale ? 'The book changed after you approved it. Please look through the new proof and approve it again.'
+      : proofOpened ? 'Tick the box once you have looked through every page.' : 'Open the proof first. It opens in a new tab.';
+    $('ps-review').dataset.state = approved ? 'done' : '';
+    $('ps-ship').dataset.state = approved ? '' : 'locked';
+    $('ship-fields').disabled = !approved;
+    $('order-btn').disabled = !approved || state.placing;
+    renderOrderTotal();
+    const list = $('order-list'); list.textContent = '';
+    for (const o of b.orders || []) list.append(orderItem(o));
+    $('order-note').hidden = !state.orderNote; $('order-note').textContent = ORDER_NOTE[state.orderNote] || '';
+    if (state.orderNote === 'placed' && !state.orderScrolled) { state.orderScrolled = true; setTimeout(() => $('print-card').scrollIntoView({ block: 'start' }), 300); }
+    // An order that is still on its way: look again in a minute.
+    clearTimeout(state.orderTimer);
+    if ((b.orders || []).some((o) => o.stage.step >= 0 && o.status !== 'shipped')) {
+      state.orderTimer = setTimeout(async () => { if (state.book?.id !== b.id) return; try { await api('GET', '/api/orders'); const { book } = await api('GET', `/api/books/${encodeURIComponent(b.id)}`); applyBook(book); } catch { /* next time */ } }, (b.orders.some((o) => o.status === 'preparing') ? 3 : 60) * 1000);
+    }
+  }
+
+  function wirePrint() {
+    $('proof-btn').addEventListener('click', (e) => {
+      if ($('proof-btn').getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; }
+      proofOpened = true; renderPrint();
+    });
+    $('proof-ok').addEventListener('change', renderPrint);
+    $('approve-btn').addEventListener('click', async () => {
+      showErr($('approve-err'), '');
+      if (await mutate('POST', '/approve', null, $('approve-err'))) say('Approved for printing.');
+    });
+    $('unapprove-btn').addEventListener('click', async () => { $('proof-ok').checked = false; await mutate('DELETE', '/approve', null, $('approve-err')); });
+    $('ship-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (state.placing) return;
+      showErr($('order-err'), ''); showFieldErrors(null);
+      const address = readAddress();
+      const shippingLevel = document.querySelector('input[name="speed"]:checked')?.value;
+      state.placing = true; $('order-btn').disabled = true; $('order-btn').textContent = 'Opening the payment page…';
+      try {
+        const { url } = await api('POST', `/api/books/${encodeURIComponent(state.bookId)}/print-order`, { address, shippingLevel });
+        try { localStorage.setItem('shipTo', JSON.stringify({ ...address })); } catch { /* fine */ }
+        location.href = url;
+      } catch (err) {
+        state.placing = false;
+        if (err.status === 401) return;
+        if (err.fields) showFieldErrors(err.fields);
+        showErr($('order-err'), err.message);
+        renderPrint();
+      }
+    });
   }
 
   // ---------- picture dialog ----------
@@ -726,6 +878,7 @@
     } catch (e) {
       failed = true; a.dirty = true;
       if (id === state.bookId && e.status !== 401) setSaveStatus('error', e.message);
+      if (e.status === 422) a.blocked = true;
     } finally {
       a.saving = false;
       if (id === state.bookId && state.book) { renderDownload(); if (a.dirty && !failed) saveAbout(); }
@@ -751,7 +904,22 @@
     await loadAccount(view);
   }
 
+  async function loadOrders(view) {
+    try {
+      const { orders } = await api('GET', '/api/orders');
+      if (view !== viewToken) return;
+      const host = $('acct-orders'); host.textContent = '';
+      for (const o of orders) {
+        const li = orderItem(o, { withTitle: true });
+        if (o.bookId) { const a = el('a', 'link-btn', 'Open the book'); a.href = `/?book=${encodeURIComponent(o.bookId)}`; onNav(a); li.append(a); }
+        host.append(li);
+      }
+      $('orders-card').hidden = !orders.length;
+    } catch { /* the rest of the page still works */ }
+  }
+
   async function loadAccount(view = viewToken) {
+    loadOrders(view);
     try {
       const acct = await api('GET', '/api/account');
       if (view !== viewToken) return;
@@ -828,6 +996,37 @@
     }
   }
 
+  // What a printed copy costs to make and ship, next to what it sells for (WRITEUP.md has the sources).
+  const PRINT_COST = { printUsd: 14.76, shipping: { MAIL: 5.69, PRIORITY_MAIL: 14.74, EXPEDITED: 20.74, EXPRESS: 35.74 } };
+  function renderPrintCosts(c) {
+    if (!c.print) return;
+    const host = $('costs-print'); host.textContent = '';
+    const gen = c.site.averageUsd ?? 0.45;
+    const table = el('table');
+    const head = el('tr');
+    ['Shipping', 'Price', 'Book art', 'Printing', 'Shipping cost', 'Card fee', 'Margin'].forEach((t, i) => { const th = el('th', i ? 'amt' : null, t); th.scope = 'col'; head.append(th); });
+    const thead = el('thead'); thead.append(head);
+    const tbody = el('tbody');
+    for (const sp of c.print.shipping) {
+      const price = (c.print.priceCents + sp.cents) / 100 + c.priceCents / 100;
+      const ship = PRINT_COST.shipping[sp.level];
+      const fee = 0.3 * 2 + 0.029 * price;
+      const margin = price - gen - PRINT_COST.printUsd - ship - fee;
+      const tr = el('tr');
+      [sp.label, usd(price), usd(gen), usd(PRINT_COST.printUsd), usd(ship), usd(fee), `${usd(margin)} (${Math.round((margin / price) * 100)}%)`].forEach((v, i) => tr.append(el('td', i ? 'amt' : null, v)));
+      tbody.append(tr);
+    }
+    table.append(thead, tbody);
+    const wrap = el('div', 'table-wrap'); wrap.append(table);
+    host.append(el('p', 'sub', `Per book a family pays ${money(c.priceCents)} for the book and ${money(c.print.priceCents)} for the printed copy. Book art is the average API cost of a book from the log. Printing is Lulu’s price for a 6 × 9 in, 24-page premium-colour hardcover plus its $0.75 fulfilment fee; shipping is Lulu’s US rate. Card fees are Stripe’s 2.9% + $0.30 on each of the two payments.`), wrap);
+    if (c.orders?.length) {
+      const list = el('ul', 'key'); list.style.marginTop = '16px';
+      for (const o of c.orders) { const li = el('li'); li.append(el('span', null, `${o.title}, ${o.status}`), el('span', 'num', `${money(o.totalCents)}${o.printCostUsd != null ? `, printer charged ${usd(o.printCostUsd)}` : ''}`)); list.append(li); }
+      host.append(el('p', 'small', `Orders so far (printer: ${c.print.printer === 'lulu-sandbox' ? 'Lulu sandbox' : 'simulated'}):`), list);
+    }
+    $('costs-print-card').hidden = false;
+  }
+
   function renderCosts(c) {
     const host = $('costs'); host.textContent = '';
     const s = c.site;
@@ -847,8 +1046,9 @@
       const margin = c.priceCents / 100 - s.averageUsd;
       host.append(split, key, el('p', 'small', `${margin >= 0 ? 'Margin' : 'Loss'} per book after API cost: ${usd(Math.abs(margin))}. Every image call, retry and analysis call is logged with its token counts; these figures are sums of that log.`));
     } else host.append(el('p', 'sub', 'The average appears here after the first book is made.'));
-    if (c.setupUsd) host.append(el('p', 'small', `One-time cost of drawing the character bible and the 40 template scenes: ${usd(c.setupUsd)} (not counted per book).`));
+    if (c.setupUsd) host.append(el('p', 'small', `One-time cost of drawing the character bible, the 40 template scenes and the 2 cover scenes: ${usd(c.setupUsd)} (not counted per book).`));
 
+    renderPrintCosts(c);
     const body = $('costs-books'); body.textContent = '';
     for (const b of c.books) {
       const tr = el('tr');
@@ -914,7 +1114,7 @@
     for (const t of a.transactions) {
       const tr = el('tr');
       const what = el('td', null, t.description);
-      const cause = { fund: 'Credit: you added money', book: 'Debit: one book generated', book_refund: 'Credit: a book failed', refund: 'Debit: refund to your card', refund_reversal: 'Credit: a refund failed' }[t.kind] || t.kind;
+      const cause = { fund: 'Credit: you added money', book: 'Debit: one book generated', book_refund: 'Credit: a book failed', refund: 'Debit: refund to your card', refund_reversal: 'Credit: a refund failed', print_payment: 'Credit: card payment for a printed book', print_order: 'Debit: printed book ordered', print_canceled: 'Credit: print order canceled' }[t.kind] || t.kind;
       const detail = el('small', null, cause + (t.kind === 'refund' && t.refundStatus ? ` (${t.refundStatus})` : ''));
       what.append(detail);
       if (t.bookId && t.kind === 'book') { const a2 = el('a', 'link-btn', 'Open the book'); a2.href = `/?book=${encodeURIComponent(t.bookId)}`; a2.style.fontSize = '.85rem'; onNav(a2); what.append(a2); }
@@ -928,7 +1128,7 @@
 
   // ---------- init ----------
   async function init() {
-    wireNewBook(); wireBook();
+    wireNewBook(); wireBook(); wirePrint();
     onNav($('brand')); onNav($('back-link')); onNav($('acct-back')); onNav($('costs-back'));
     window.addEventListener('popstate', route);
     window.addEventListener('pagehide', () => { if (state.bookId && state.about.dirty) saveAbout(); });

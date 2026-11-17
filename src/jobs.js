@@ -15,7 +15,7 @@ import { generateImage, HttpError, MODEL } from './image.js';
 import { analyzeImage } from './analyze.js';
 import { drawWithQuality, MAX_ATTEMPTS } from './quality.js';
 import { layoutFor } from './layout.js';
-import { referencePrompt, pagePrompt, pageFromScratchPrompt, fixPrompt, storyOf, pageText, normalizeAbout, PAGE_IDS, SLOT_BY_ID } from './book.js';
+import { referencePrompt, pagePrompt, pageFromScratchPrompt, fixPrompt, storyOf, pageText, normalizeAbout, SCENE_IDS, SLOT_BY_ID } from './book.js';
 import { getScene, getCharacter, makeThumb } from './library.js';
 import { buildAndStorePdf } from './bookpdf.js';
 import * as billing from './billing.js';
@@ -73,7 +73,7 @@ export async function checkBookBudget(userId) {
 // Redrawing the hero changes what every page is built on, so the hero's pages follow.
 export function expandSlots(slots, story) {
   const wanted = new Set(slots.filter((s) => SLOT_BY_ID[s]));
-  if (wanted.has('reference')) story.pages.filter((p) => p.hero).forEach((p) => wanted.add(p.id));
+  if (wanted.has('reference')) [story.cover, ...story.pages].filter((p) => p.hero).forEach((p) => wanted.add(p.id));
   return Object.keys(SLOT_BY_ID).filter((s) => wanted.has(s));
 }
 
@@ -100,7 +100,7 @@ async function run({ book, story, userId, todo, purpose, deadlineAt }) {
   const t0 = Date.now();
   const name = normalizeAbout(book.about).name;
   const ctx = { bookId, userId, story, name, purpose };
-  const pages = todo.filter((s) => PAGE_IDS.includes(s)).map((s) => story.pageById[s]);
+  const pages = todo.filter((s) => SCENE_IDS.includes(s)).map((s) => story.pageById[s]);
   const scenes = Object.fromEntries(await Promise.all(pages.map(async (p) => [p.id, await getScene(story.id, p.id)])));
 
   // 1. Pages without the hero come straight from the template.
@@ -216,7 +216,7 @@ async function drawSlot(ctx, slot, { kind, page = null, make, check, deadlineAt 
 
 // "Fix something on this page": an edit of the existing page, keeping the old one for undo.
 export async function startFix({ bookId, userId, pageId, instruction }) {
-  if (!PAGE_IDS.includes(pageId)) throw new HttpError(400, 'Unknown page.');
+  if (!SCENE_IDS.includes(pageId)) throw new HttpError(400, 'Unknown page.');
   if (active.has(key(bookId, pageId))) throw new HttpError(409, 'That page is already being drawn.');
   const book = await store.getBookForJob(bookId);
   const story = storyOf(book.story);

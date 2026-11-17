@@ -158,6 +158,47 @@ create table if not exists api_calls (
   mock boolean not null default false
 );
 create index if not exists api_calls_by_book on api_calls (book_id);
+
+-- ---- homework 5: print and ship ------------------------------------------------------
+alter table books add column if not exists approved_hash text;   -- fingerprint of the approved proof
+alter table books add column if not exists approved_at timestamptz;
+alter table payments add column if not exists purpose text not null default 'fund';  -- fund | print
+alter table payments add column if not exists order_id bigint;
+create unique index if not exists one_print_payment on transactions (payment_id) where kind = 'print_payment';
+
+create table if not exists print_orders (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  book_id uuid,                                  -- kept even if the book is deleted later
+  title text not null,
+  status text not null default 'awaiting_payment', -- awaiting_payment | preparing | submitted | in_production | shipped | failed | canceled
+  shipping_level text not null,
+  address jsonb not null,
+  price_cents int not null,
+  shipping_cents int not null,
+  total_cents int not null,
+  approved_hash text not null,
+  file_token text not null,
+  interior_pdf bytea,
+  cover_pdf bytea,
+  cover_dims jsonb,
+  provider text,
+  provider_job_id text,
+  provider_status text,
+  provider_message text,
+  customer_message text,
+  print_cost_usd numeric(10,2),
+  tracking_url text,
+  carrier text,
+  refunded boolean not null default false,
+  created_at timestamptz not null default now(),
+  paid_at timestamptz,
+  submitted_at timestamptz,
+  shipped_at timestamptz,
+  checked_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+create index if not exists print_orders_by_user on print_orders (user_id, id desc);
 `;
 
 async function connect() {

@@ -40,7 +40,8 @@ test('one 20-page template serves both stories', () => {
     });
   }
   assert.deepEqual(Object.keys(STORIES), ['jack', 'red']);
-  assert.equal(SLOTS.length, 21);
+  assert.equal(SLOTS.length, 22, 'the hero, the front cover and 20 pages');
+  for (const story of Object.values(STORIES)) assert.equal(story.cover.zone, 'top', 'the title sits in the top of the cover');
 });
 
 test('story text is short enough to fit, names the child, and never genders the hero', () => {
@@ -73,7 +74,7 @@ test('every prompt uses the one style string and forbids drawn text', () => {
 test('redrawing the hero redraws the pages the hero is on', () => {
   const red = STORIES.red;
   const heroPages = red.pages.filter((p) => p.hero).map((p) => p.id);
-  assert.deepEqual(expandSlots(['reference'], red), ['reference', ...heroPages]);
+  assert.deepEqual(expandSlots(['reference'], red), ['reference', 'cover', ...heroPages]);
   assert.deepEqual(expandSlots(['p02', 'nope'], red), ['p02']);
 });
 
@@ -246,7 +247,7 @@ test('funding: checkout credits the account exactly once', async () => {
 });
 
 let bookId;
-test('a new book costs $0.99, needs a name and a story, and draws 21 pictures', async () => {
+test('a new book costs $0.99, needs a name and a story, and draws 22 pictures', async () => {
   assert.equal((await call('POST', '/api/books', { photo: tinyPng, story: 'jack', about: {} })).status, 400);
   assert.equal((await call('POST', '/api/books', { photo: tinyPng, story: 'nope', about: { name: 'Maya' } })).status, 400);
   const res = await call('POST', '/api/books', { photo: tinyPng, story: 'red', about: { name: 'Maya', age: '6' } });
@@ -255,7 +256,7 @@ test('a new book costs $0.99, needs a name and a story, and draws 21 pictures', 
   bookId = body.book.id;
   assert.equal(body.balanceCents, 401);
   assert.equal(body.book.busy, true);
-  assert.equal(body.book.slots.length, 21);
+  assert.equal(body.book.slots.length, 22);
   assert.match(body.book.stage.label, /Drawing Maya as Little Red/);
 
   const done = await settle(bookId);
@@ -281,10 +282,10 @@ test('every picture shows its attempt count; failures were redrawn, at most 3 ti
 
 test('every API call of the book is in the cost log', async () => {
   const { book } = await json('GET', `/api/books/${bookId}`);
-  // 21 pictures + 1 retry (p03) + 2 retries (p05) = 24 drawings and 24 checks.
-  assert.equal(book.cost.drawings + book.cost.retries, 24);
+  // 22 pictures + 1 retry (p03) + 2 retries (p05) = 25 drawings and 25 checks.
+  assert.equal(book.cost.drawings + book.cost.retries, 25);
   assert.equal(book.cost.retries, 3);
-  assert.equal(book.cost.checks, 24);
+  assert.equal(book.cost.checks, 25);
   assert.ok(book.cost.totalUsd > 0);
   const costs = await json('GET', '/api/costs');
   assert.equal(costs.site.books, 1);
@@ -298,7 +299,7 @@ test('every API call of the book is in the cost log', async () => {
 test('pictures and thumbnails are served to the owner only', async () => {
   const { books } = await json('GET', '/api/books');
   assert.equal(books[0].id, bookId);
-  assert.equal(books[0].done, 21);
+  assert.equal(books[0].done, 22);
   assert.equal((await call('GET', books[0].thumbUrl)).status, 200);
   assert.equal((await fetch(base + books[0].thumbUrl)).status, 401);
   assert.equal((await call('GET', '/api/books/00000000-0000-0000-0000-000000000000')).status, 404);
@@ -310,7 +311,7 @@ test('the PDF is stored with the book and still downloads after signing in again
   assert.match(first.headers.get('content-disposition'), /Maya-LittleRedRidingHood\.pdf/);
   const bytes = Buffer.from(await first.arrayBuffer());
   assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
-  assert.equal((bytes.toString('latin1').match(/\/Type \/Page\b/g) || []).length, 21, '20 story pages plus About Me');
+  assert.equal((bytes.toString('latin1').match(/\/Type \/Page\b/g) || []).length, 24, 'front cover, copyright, 20 story pages, The End, back cover');
 
   await call('POST', '/auth/logout');
   cookie = '';
@@ -365,4 +366,131 @@ test('deleting a book removes it but keeps its cost in the log', async () => {
   assert.equal((await call('DELETE', `/api/books/${bookId}`)).status, 204);
   assert.equal((await call('GET', `/api/books/${bookId}`)).status, 404);
   assert.equal((await json('GET', '/api/costs')).site.books, 1);
+});
+
+// --- What the family types is checked before anything is printed --------------------------
+const { checkAbout } = await import('../src/moderation.js');
+
+test('About Me: real names from any culture pass; insults, swears and contact details do not', async () => {
+  for (const name of ['Maya', 'Zoë', 'Jean-Luc', 'Siobhan', 'Nguyễn', "D'Angelo", 'Xochitl', 'Bjørn']) {
+    assert.equal((await checkAbout({ name })).ok, true, name);
+  }
+  for (const name of ['Stupid', '1d10t', 'S.t.u.p.i.d', 'Poopy Head', 'Fatso', 'Fuckface', 'Baby', 'Kkkk']) {
+    const r = await checkAbout({ name });
+    assert.equal(r.ok, false, name);
+    assert.ok(r.errors.name, name);
+  }
+  assert.equal((await checkAbout({ name: 'Maya', favorites: 'our pet pig and the cows on the farm' })).ok, true, 'animals are fine in favorites');
+  assert.ok((await checkAbout({ name: 'Maya', about: 'a little shit sometimes' })).errors.about);
+  assert.ok((await checkAbout({ name: 'Maya', about: 'call 555-123-4567' })).errors.about);
+  assert.ok((await checkAbout({ name: 'Maya', favorites: 'www.example.com' })).errors.favorites);
+});
+
+test('About Me: an insulting name is refused before the book is charged or saved', async () => {
+  const before = (await json('GET', '/api/account')).balanceCents;
+  const res = await call('POST', '/api/books', { photo: tinyPng, story: 'jack', about: { name: 'Idiot' } });
+  assert.equal(res.status, 422);
+  assert.ok((await res.json()).fields.name);
+  assert.equal((await json('GET', '/api/account')).balanceCents, before, 'nothing was charged');
+});
+
+// --- Print and ship -------------------------------------------------------------------
+const { buildPrintInterior, buildPrintCover, FALLBACK_COVER_DIMS } = await import('../src/pdf.js');
+const { loadBook } = await import('../src/bookpdf.js');
+
+let printBookId;
+test('print: a finished book gets an interior with bleed and a case-wrap cover', async () => {
+  const { url } = await json('POST', '/api/billing/checkout', { amountCents: 99 });
+  await call('GET', url);
+  const created = await (await call('POST', '/api/books', { photo: tinyPng, story: 'jack', about: { name: 'Theo', age: '6', favorites: 'Trains' } })).json();
+  printBookId = created.book.id;
+  await settle(printBookId);
+  const book = await loadBook(printBookId);
+  const interior = (await buildPrintInterior(book)).toString('latin1');
+  assert.equal((interior.match(/\/Type \/Page\b/g) || []).length, 24, 'copyright, 20 pages, The End, padded to 24');
+  assert.match(interior, /\/MediaBox \[0 0 450 666\]/, '6.25 x 9.25 in: 6 x 9 plus 0.125 in bleed');
+  const cover = (await buildPrintCover(book, FALLBACK_COVER_DIMS)).toString('latin1');
+  assert.equal((cover.match(/\/Type \/Page\b/g) || []).length, 1);
+  assert.match(cover, /\/MediaBox \[0 0 1008 774\]/, 'back, spine and front as one wrap');
+});
+
+test('print: nothing can be ordered before the proof is approved', async () => {
+  const { book } = await json('GET', `/api/books/${printBookId}`);
+  assert.equal(book.approval.approved, false);
+  const res = await call('POST', `/api/books/${printBookId}/print-order`, { address: {}, shippingLevel: 'MAIL' });
+  assert.equal(res.status, 409);
+});
+
+const goodAddress = { name: 'Dana Cohen', street1: '101 Independence Ave SE', city: 'Washington', state_code: 'DC', postcode: '20540', phone_number: '202-555-0143', email: 'dana@example.com' };
+
+test('print: approving, then changing the book, voids the approval', async () => {
+  const approved = (await json('POST', `/api/books/${printBookId}/approve`)).book;
+  assert.equal(approved.approval.approved, true);
+  const changed = (await json('PATCH', `/api/books/${printBookId}`, { about: { name: 'Theo', age: '7', favorites: 'Trains' } })).book;
+  assert.equal(changed.approval.approved, false);
+  assert.equal(changed.approval.stale, true);
+  assert.equal((await call('POST', `/api/books/${printBookId}/print-order`, { address: goodAddress, shippingLevel: 'MAIL' })).status, 409);
+  assert.equal((await json('POST', `/api/books/${printBookId}/approve`)).book.approval.approved, true);
+});
+
+test('print: the delivery address is checked field by field', async () => {
+  const res = await call('POST', `/api/books/${printBookId}/print-order`, { address: { ...goodAddress, postcode: '123', state_code: 'ZZ', phone_number: '12' }, shippingLevel: 'MAIL' });
+  assert.equal(res.status, 422);
+  const { fields } = await res.json();
+  assert.ok(fields.postcode && fields.state_code && fields.phone_number);
+  assert.equal((await call('POST', `/api/books/${printBookId}/print-order`, { address: goodAddress, shippingLevel: 'BOAT' })).status, 400);
+});
+
+test('print: paying places the order, sends it to the printer, and records it in the history', async () => {
+  const res = await call('POST', `/api/books/${printBookId}/print-order`, { address: goodAddress, shippingLevel: 'PRIORITY_MAIL' });
+  assert.equal(res.status, 200);
+  const { url } = await res.json();
+  const back = await call('GET', url);
+  assert.match(back.headers.get('location'), new RegExp(`book=${printBookId}&order=placed`));
+  let order;
+  for (let i = 0; i < 100; i++) {
+    ({ book: { orders: [order] } } = await json('GET', `/api/books/${printBookId}`));
+    if (order?.status === 'submitted') break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.equal(order.status, 'submitted');
+  assert.equal(order.totalCents, 2899 + 999);
+  assert.match(order.number, /^BB-\d{5}$/);
+  assert.match(order.shipTo, /Dana Cohen, Washington, DC 20540/);
+
+  const acct = await json('GET', '/api/account');
+  const [out, paid] = acct.transactions;
+  assert.equal(paid.kind, 'print_payment');
+  assert.equal(paid.amountCents, 3898);
+  assert.equal(out.kind, 'print_order');
+  assert.equal(out.amountCents, -3898);
+  assert.equal(acct.payments.every((p) => p.amountCents !== 3898), true, 'a print payment is not offered as a top-up refund');
+
+  // The printer can fetch the files with the secret link, and nobody can without it.
+  const { getOrder } = await import('../src/print.js');
+  const row = await getOrder(order.id);
+  const ok = await fetch(`${base}/print-files/${order.id}/${row.file_token}/interior.pdf`);
+  assert.equal(ok.status, 200);
+  assert.equal(Buffer.from(await ok.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+  assert.equal((await fetch(`${base}/print-files/${order.id}/wrong-token/interior.pdf`)).status, 404);
+  assert.equal((await json('GET', '/api/orders')).orders[0].id, order.id);
+});
+
+test('print: an order the printer cannot take is refunded to the card', async () => {
+  const { getOrder, submitOrder } = await import('../src/print.js');
+  const { refundPrintOrder } = await import('../src/billing.js');
+  const { query } = await import('../src/db.js');
+  const res = await call('POST', `/api/books/${printBookId}/print-order`, { address: goodAddress, shippingLevel: 'MAIL' });
+  const { url } = await res.json();
+  // Delete the book's pictures so the print files cannot be built.
+  await query(`update book_images set data = null where book_id = $1 and slot = 'p05'`, [printBookId]);
+  await call('GET', url);
+  const [{ id }] = await query(`select id from print_orders where book_id = $1 order by id desc limit 1`, [printBookId]);
+  await submitOrder(id, { baseUrl: base, onFail: refundPrintOrder });
+  let order;
+  for (let i = 0; i < 100; i++) { order = await getOrder(id); if (order.refunded) break; await new Promise((r) => setTimeout(r, 50)); }
+  assert.equal(order.status, 'failed');
+  assert.equal(order.refunded, true);
+  const acct = await json('GET', '/api/account');
+  assert.deepEqual(acct.transactions.slice(0, 2).map((t) => t.kind), ['refund', 'print_canceled']);
 });
