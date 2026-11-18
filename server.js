@@ -94,6 +94,12 @@ app.get('/healthz', (_req, res) => res.json({
   printer: printing.printerMode(),
 }));
 
+// Whether the print API keys work (signs in to the Lulu sandbox; the token is cached for an hour).
+app.get('/healthz/printer', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await printing.checkSignIn());
+});
+
 // The menus the UI renders, so the server stays the single source of truth.
 app.get('/api/options', (_req, res) => {
   const menu = (table) => Object.entries(table).map(([id, v]) => ({ id, label: v.label ?? id }));

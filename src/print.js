@@ -83,10 +83,17 @@ async function luluToken() {
     body: 'grant_type=client_credentials',
     signal: AbortSignal.timeout(20_000),
   });
-  if (!res.ok) throw new Error(`Lulu sign-in failed (${res.status})`);
+  if (!res.ok) throw new Error(`Lulu sign-in failed (${res.status}): ${(await res.text()).slice(0, 160)}`);
   const j = await res.json();
   token = { value: j.access_token, until: Date.now() + (Number(j.expires_in || 3600) - 120) * 1000 };
   return token.value;
+}
+
+// For /healthz/printer: can this server sign in to the Lulu sandbox with its keys?
+export async function checkSignIn() {
+  if (printerMode() !== 'lulu-sandbox') return { printer: printerMode(), signIn: 'not configured' };
+  try { await luluToken(); return { printer: 'lulu-sandbox', signIn: 'ok' }; }
+  catch (err) { return { printer: 'lulu-sandbox', signIn: 'failed', error: err.message }; }
 }
 
 async function lulu(method, path, body) {
