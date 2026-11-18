@@ -162,6 +162,10 @@ async function storiesJson() {
       return {
         id: st.id, title: st.title, heroRole: st.heroRole, heroOutfit: st.heroOutfit,
         scenesReady: Object.keys(sc).length,
+        cover: {
+          id: st.cover.id, number: 0, title: 'Front cover', text: st.cover.text, zone: st.cover.zone, shot: st.cover.shot, hero: true,
+          sceneUrl: sc.cover ? `/api/library/${st.id}/scenes/cover?size=thumb&v=${v(sc.cover.hash)}` : null,
+        },
         coverUrl: sc.p07 ? `/api/library/${st.id}/scenes/p07?size=thumb&v=${v(sc.p07.hash)}` : null,
         pages: st.pages.map((p) => ({
           id: p.id, number: p.number, title: p.title, text: p.text, zone: p.zone, shot: p.shot, hero: p.hero,
@@ -229,6 +233,18 @@ async function bookJson(row) {
   const story = storyOf(row.story);
   if (await store.ensureSlots(row.id, rows.map((r) => r.slot))) return bookJson(row);
   const bySlot = Object.fromEntries(rows.map((r) => [r.slot, r]));
+  // Books made before the front cover existed have an empty cover slot: draw it once,
+  // at no charge, as soon as the book is opened.
+  const cover = bySlot.cover;
+  if (cover && cover.status === 'empty' && !cover.has_image && bySlot.reference?.has_image
+    && !rows.some((r) => r.status === 'queued' || r.status === 'running') && !jobs.isActive(row.id, 'cover')) {
+    try {
+      await jobs.startGeneration({ bookId: row.id, userId: row.user_id, slots: ['cover'], purpose: 'upgrade' });
+      return bookJson(row);
+    } catch (err) {
+      log.warn({ err, bookId: row.id }, 'could not start the missing cover');
+    }
+  }
   const slots = await Promise.all(SLOTS.map(async (def) => {
     const r = bySlot[def.id] || { status: 'empty' };
     let { status, error } = r;

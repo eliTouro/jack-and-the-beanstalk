@@ -494,3 +494,26 @@ test('print: an order the printer cannot take is refunded to the card', async ()
   const acct = await json('GET', '/api/account');
   assert.deepEqual(acct.transactions.slice(0, 2).map((t) => t.kind), ['refund', 'print_canceled']);
 });
+
+
+test('a book made before the front cover existed draws its missing cover, free, when opened', async () => {
+  const { query } = await import('../src/db.js');
+  const { url } = await json('POST', '/api/billing/checkout', { amountCents: 99 });
+  await call('GET', url);
+  const oldBookId = (await (await call('POST', '/api/books', { photo: tinyPng, story: 'red', about: { name: 'Ada' } })).json()).book.id;
+  await settle(oldBookId);
+  const before = (await json('GET', '/api/account')).balanceCents;
+  // What a book made before the cover existed looks like: no cover row at all.
+  await query(`delete from book_images where book_id = $1 and slot = 'cover'`, [oldBookId]);
+  const { book } = await json('GET', `/api/books/${oldBookId}`);
+  assert.equal(book.slots.length, 22);
+  assert.notEqual(book.slots.find((s) => s.id === 'cover').status, 'empty', 'the cover is queued as soon as the book is opened');
+  const done = await settle(oldBookId);
+  const cover = done.slots.find((s) => s.id === 'cover');
+  assert.equal(cover.status, 'done');
+  assert.ok(cover.imageUrl);
+  assert.equal(done.pdfReady, true);
+  assert.equal((await json('GET', '/api/account')).balanceCents, before, 'the family is not charged');
+  const stories = await (await fetch(base + '/api/stories')).json();
+  assert.equal(stories.stories[0].cover.id, 'cover');
+});

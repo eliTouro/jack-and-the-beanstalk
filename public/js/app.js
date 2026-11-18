@@ -79,6 +79,9 @@
   const fmtWhen = (v) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
 
   const storyDef = (id) => state.lib?.stories.find((s) => s.id === id);
+  // The front cover, then the 20 pages: every picture drawn from a template scene.
+  const scenesOf = (story) => (story.cover ? [story.cover, ...story.pages] : story.pages);
+  const pageName = (p) => (p.number ? `Page ${p.number}` : 'Front cover');
   const slotOf = (id) => state.book?.slots.find((s) => s.id === id);
   const isBusy = (s) => !!s && (s.status === 'queued' || s.status === 'running');
   const anyBusy = () => !!state.book && state.book.slots.some(isBusy);
@@ -411,8 +414,8 @@
       t.plate.dataset.zone = s.zone || page.zone;
       t.plate.dataset.tone = s.tone || 'light';
       t.plate.textContent = pageLine(page);
-      t.name.textContent = `Page ${page.number}`;
-      t.btn.setAttribute('aria-label', `Page ${page.number}, ${page.title}. ${busy ? busyText(s) : s.attempts ? `${plural(s.attempts, 'attempt')} of ${s.maxAttempts}` : s.status}. Open details.`);
+      t.name.textContent = pageName(page);
+      t.btn.setAttribute('aria-label', `${pageName(page)}, ${page.title}. ${busy ? busyText(s) : s.attempts ? `${plural(s.attempts, 'attempt')} of ${s.maxAttempts}` : s.status}. Open details.`);
     } else {
       t.name.textContent = 'Your hero';
       t.btn.setAttribute('aria-label', `Your hero. ${busy ? busyText(s) : s.attempts ? `${plural(s.attempts, 'attempt')} of ${s.maxAttempts}` : s.status}. Open details.`);
@@ -498,7 +501,7 @@
     heroHost.append(tiles.reference.btn);
 
     const host = $('pages'); host.textContent = '';
-    for (const p of story.pages) { tiles[p.id] = makeTile(p.id); host.append(tiles[p.id].btn); }
+    for (const p of scenesOf(story)) { tiles[p.id] = makeTile(p.id); host.append(tiles[p.id].btn); }
 
     const form = $('about-form'); form.textContent = '';
     for (const f of state.lib.about) {
@@ -566,7 +569,7 @@
   function renderPictures() {
     const story = storyDef(state.book.story);
     paintTile(tiles.reference, slotOf('reference'), null);
-    for (const p of story.pages) paintTile(tiles[p.id], slotOf(p.id), p);
+    for (const p of scenesOf(story)) if (tiles[p.id]) paintTile(tiles[p.id], slotOf(p.id) || { id: p.id, status: 'empty' }, p);
     const ref = slotOf('reference');
     const name = state.book.about.name || 'Your child';
     $('hero-note').textContent = ref.status === 'error'
@@ -763,7 +766,7 @@
     const s = slotOf(state.open);
     if (!s) return;
     const story = storyDef(state.book.story);
-    const page = story.pages.find((p) => p.id === s.id) || null;
+    const page = scenesOf(story).find((p) => p.id === s.id) || null;
     const frame = $('dlg-frame');
     frame.textContent = '';
     frame.dataset.shape = page ? '' : 'square';
@@ -772,13 +775,13 @@
     frame.dataset.has = String(!!s.imageUrl);
     if (s.imageUrl) {
       const img = el('img', 'is-in'); img.src = s.imageUrl;
-      img.alt = page ? `Page ${page.number}: ${page.title}` : 'Your child drawn as the hero';
+      img.alt = page ? `${pageName(page)}: ${page.title}` : 'Your child drawn as the hero';
       frame.append(img);
       if (page) { const plate = el('p', 'plate', pageLine(page)); plate.dataset.zone = s.zone || page.zone; plate.dataset.tone = s.tone || 'light'; frame.append(plate); }
     }
     if (!s.imageUrl || isBusy(s)) { const w = el('div', 'wait'); w.append(el('b', null, isBusy(s) ? busyText(s) : 'Not drawn yet')); frame.append(w); }
 
-    $('dlg-where').textContent = page ? `Page ${page.number} of ${story.pages.length}` : 'The reference for every page';
+    $('dlg-where').textContent = page ? (page.number ? `Page ${page.number} of ${story.pages.length}` : 'The front of the printed book') : 'The reference for every page';
     $('dlg-title').textContent = page ? page.title : `${state.book.about.name || 'Your child'} as ${story.heroRole}`;
     $('dlg-text').hidden = !page;
     if (page) $('dlg-text').textContent = pageLine(page);
