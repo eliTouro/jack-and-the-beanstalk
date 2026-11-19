@@ -78,6 +78,6 @@ Not in the numbers: US sales tax (Lulu charges tax on the print job in many stat
 
 ## 7. What I could not finish
 
-- **Lulu sandbox keys.** Creating the Lulu sandbox account is a sign-up I had to leave to the site owner. Until `LULU_CLIENT_KEY` and `LULU_CLIENT_SECRET` are set, orders go to the simulated printer. The Lulu client code follows Lulu's published API and was checked against its OpenAPI file, but it has not yet placed a sandbox job.
+- **Lulu sandbox.** The keys are set and the live site has placed a real sandbox print job (order BB-00002, Lulu job 366735). The first attempt failed on a wrong key; the payment was refunded automatically, which tested the failure path for real. What is not yet seen is the job going all the way to SHIPPED in the sandbox.
 - **The Jack and the Beanstalk sample** with the new cover: the OpenAI account ran out of credit during the run. The Little Red Riding Hood sample was made by the app end to end.
 - **The `storybook-review` rerun:** see review-log.md.
